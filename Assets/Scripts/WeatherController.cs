@@ -12,9 +12,15 @@ public class WeatherController : MonoBehaviour
     [SerializeField] private float transitionAngle = 30f; // Angle range for sunrise/sunset transitions
     [SerializeField] private float transitionSpeed = 2f; // Speed of skybox transitions
 
+    [SerializeField] private AudioSource dayAmbience;
+    [SerializeField] private AudioSource nightAmbience;
+    [SerializeField] private AudioSource rainAmbience;
+    [SerializeField] private AudioSource earthquakeAmbience;
+
     private Material currentSkybox;
     private Material targetSkybox;
     private float transitionProgress = 0f;
+    private bool isDaytime = true;
 
     private void StartTransition(Material newSkybox)
     {
@@ -46,6 +52,29 @@ public class WeatherController : MonoBehaviour
         RenderSettings.skybox = transitionMaterial;
     }
 
+    private void UpdateAmbience()
+    {
+        // Stop all ambience first
+        dayAmbience.Stop();
+        nightAmbience.Stop();
+        rainAmbience.Stop();
+        earthquakeAmbience.Stop();
+
+        // Play appropriate ambience based on conditions
+        if (rainObject.activeSelf)
+        {
+            rainAmbience.Play();
+        }
+        else if (isDaytime)
+        {
+            dayAmbience.Play();
+        }
+        else
+        {
+            nightAmbience.Play();
+        }
+    }
+
     void Start()
     {
         if (mainCamera == null)
@@ -53,6 +82,7 @@ public class WeatherController : MonoBehaviour
             mainCamera = Camera.main;
         }
         currentSkybox = RenderSettings.skybox;
+        UpdateAmbience();
     }
 
     void Update()
@@ -61,6 +91,7 @@ public class WeatherController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.R))
         {
             rainObject.SetActive(!rainObject.activeSelf);
+            UpdateAmbience();
         }
 
         // Check if rain is active
@@ -78,27 +109,40 @@ public class WeatherController : MonoBehaviour
             cameraYRotation -= 360f;
         }
 
+        bool wasDaytime = isDaytime;
+        
         // Handle transitions between day and night following the order:
         // Dawn -> Day -> Sunset -> Night -> Dawn
         if (cameraYRotation >= 180f - transitionAngle && cameraYRotation < 180f)
         {
             StartTransition(sunriseSkybox); // Dawn
+            isDaytime = true;
         }
         else if (cameraYRotation >= 0f && cameraYRotation < 180f - transitionAngle)
         {
             StartTransition(daySkybox); // Day
+            isDaytime = true;
         }
         else if (cameraYRotation >= -transitionAngle && cameraYRotation < 0f)
         {
             StartTransition(sunsetSkybox); // Sunset
+            isDaytime = false;
         }
         else if (cameraYRotation >= -180f && cameraYRotation < -transitionAngle)
         {
             StartTransition(nightSkybox); // Night
+            isDaytime = false;
         }
         else
         {
             StartTransition(sunriseSkybox); // Back to Dawn
+            isDaytime = true;
+        }
+
+        // Update ambience if day/night state changed
+        if (wasDaytime != isDaytime)
+        {
+            UpdateAmbience();
         }
 
         UpdateSkyboxTransition();
