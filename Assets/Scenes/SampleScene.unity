@@ -283,6 +283,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3cbe73def9abecb45b11d6d07fe45106, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  server: 192.168.8.115
+  port: 80
+  eventsPath: /events
 --- !u!1 &344126912
 GameObject:
   m_ObjectHideFlags: 0

@@ -71,6 +71,7 @@ public class GyroReader : MonoBehaviour
 
                 if (eventLine.StartsWith("data:"))
                 {
+                    Debug.Log(eventLine);
                     string jsonData = eventLine.Substring(5).Trim();
                     try
                     {
@@ -95,11 +96,20 @@ public class GyroReader : MonoBehaviour
     {
         public double gyroZ;
     }
+
     public void Start()
     {
-        this.StartListening(it =>
-        {
-            Debug.Log($"GyroZ: {it}");
-        });
+        this.StartListening(it => { rotY = (float)it * 360; });
+    }
+
+    private float rotY = 0f;
+
+    public void Update()
+    {
+        var rotation = this.transform.rotation;
+        var rotX = rotation.eulerAngles.x;
+        var rotZ = rotation.eulerAngles.z;
+        rotation = Quaternion.Euler(rotX, rotY, rotZ);
+        this.transform.rotation = rotation;
     }
 }
