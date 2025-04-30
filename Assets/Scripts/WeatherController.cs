@@ -1,4 +1,6 @@
 using UnityEngine;
+using TMPro;
+using System.Text.RegularExpressions;
 
 public class WeatherController : MonoBehaviour
 {
@@ -9,18 +11,136 @@ public class WeatherController : MonoBehaviour
     [SerializeField] private Material sunriseSkybox;
     [SerializeField] private Material sunsetSkybox;
     [SerializeField] private Camera mainCamera;
-    [SerializeField] private float transitionAngle = 30f; // Angle range for sunrise/sunset transitions
-    [SerializeField] private float transitionSpeed = 2f; // Speed of skybox transitions
+    [SerializeField, Range(10f, 90f)] private float transitionAngle = 30f;
+    [SerializeField] private float transitionSpeed = 2f;
 
     [SerializeField] private AudioSource dayAmbience;
     [SerializeField] private AudioSource nightAmbience;
     [SerializeField] private AudioSource rainAmbience;
     [SerializeField] private AudioSource earthquakeAmbience;
 
+    [SerializeField] private TextMeshProUGUI weatherText;
+
     private Material currentSkybox;
     private Material targetSkybox;
     private float transitionProgress = 0f;
     private bool isDaytime = true;
+
+    private void Start()
+    {
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+        }
+
+        currentSkybox = RenderSettings.skybox;
+        UpdateAmbience();
+    }
+
+    private void Update()
+    {
+        float cameraY = NormalizeAngle(mainCamera.transform.eulerAngles.y);
+        float normalized = (cameraY + 180f) % 360f;
+        int hour = Mathf.FloorToInt(normalized / 15f); // 15° per hour
+        string timeLabel = GetTimeString(hour);
+        string tempLabel = GetTempString(hour);
+
+        HandleRainToggle();
+
+        if (rainObject.activeSelf)
+        {
+            StartTransition(rainSkybox);
+            UpdateSkyboxTransition();
+
+            // Adjust temperature for rain (subtract 5°C)
+            string rainyTemp = AdjustRainTemp(tempLabel, -5);
+            UpdateWeatherText("RAINING", timeLabel, rainyTemp);
+            return;
+        }
+
+        bool wasDaytime = isDaytime;
+        UpdateTimeWeatherAndSkybox(hour, timeLabel, tempLabel);
+        if (wasDaytime != isDaytime)
+        {
+            UpdateAmbience();
+        }
+
+        UpdateSkyboxTransition();
+    }
+
+    private float NormalizeAngle(float angle)
+    {
+        return (angle > 180f) ? angle - 360f : angle;
+    }
+
+    private void HandleRainToggle()
+    {
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            rainObject.SetActive(!rainObject.activeSelf);
+            UpdateAmbience();
+        }
+    }
+
+    private void UpdateTimeWeatherAndSkybox(int hour, string timeLabel, string tempLabel)
+    {
+        // Skybox phase based on hour
+        if (hour >= 5 && hour < 7)
+        {
+            StartTransition(sunriseSkybox);
+            isDaytime = true;
+        }
+        else if (hour >= 7 && hour < 17)
+        {
+            StartTransition(daySkybox);
+            isDaytime = true;
+        }
+        else if (hour >= 17 && hour < 19)
+        {
+            StartTransition(sunsetSkybox);
+            isDaytime = false;
+        }
+        else
+        {
+            StartTransition(nightSkybox);
+            isDaytime = false;
+        }
+
+        UpdateWeatherText("D.O.M.E.", timeLabel, tempLabel);
+    }
+
+    private string GetTimeString(int hour)
+    {
+        int displayHour = (hour % 12 == 0) ? 12 : hour % 12;
+        string ampm = (hour < 12) ? "AM" : "PM";
+        return $"TIME: {displayHour:00}:00 {ampm}";
+    }
+
+    private string GetTempString(int hour)
+    {
+        int[] tempByHour = {
+            10, 10, 10, 12, 14, 16, 18, 20, 23, 25, 27, 28, // Midnight–Noon
+            30, 30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10  // Noon–Midnight
+        };
+        int temp = tempByHour[hour % 24];
+        return $"TEMP: {temp}'C";
+    }
+
+    private string AdjustRainTemp(string tempString, int delta)
+    {
+        Match match = Regex.Match(tempString, @"\d+");
+        if (match.Success)
+        {
+            int temp = int.Parse(match.Value) + delta;
+            return $"TEMP: {temp}'C";
+        }
+        return tempString;
+    }
+
+    private void UpdateWeatherText(string header, string time, string temp)
+    {
+        weatherText.text = $"{header}\n{time}\n{temp}";
+    }
 
     private void StartTransition(Material newSkybox)
     {
@@ -39,28 +159,24 @@ public class WeatherController : MonoBehaviour
         transitionProgress += Time.deltaTime * transitionSpeed;
         if (transitionProgress >= 1f)
         {
-            transitionProgress = 1f;
             RenderSettings.skybox = targetSkybox;
             currentSkybox = targetSkybox;
             targetSkybox = null;
             return;
         }
 
-        // Create a temporary material for the transition
-        Material transitionMaterial = new Material(currentSkybox);
-        transitionMaterial.Lerp(currentSkybox, targetSkybox, transitionProgress);
-        RenderSettings.skybox = transitionMaterial;
+        Material transitionMat = new Material(currentSkybox);
+        transitionMat.Lerp(currentSkybox, targetSkybox, transitionProgress);
+        RenderSettings.skybox = transitionMat;
     }
 
     private void UpdateAmbience()
     {
-        // Stop all ambience first
         dayAmbience.Stop();
         nightAmbience.Stop();
         rainAmbience.Stop();
         earthquakeAmbience.Stop();
 
-        // Play appropriate ambience based on conditions
         if (rainObject.activeSelf)
         {
             rainAmbience.Play();
@@ -73,78 +189,5 @@ public class WeatherController : MonoBehaviour
         {
             nightAmbience.Play();
         }
-    }
-
-    void Start()
-    {
-        if (mainCamera == null)
-        {
-            mainCamera = Camera.main;
-        }
-        currentSkybox = RenderSettings.skybox;
-        UpdateAmbience();
-    }
-
-    void Update()
-    {
-        // Toggle rain with R key
-        if (Input.GetKeyDown(KeyCode.R))
-        {
-            rainObject.SetActive(!rainObject.activeSelf);
-            UpdateAmbience();
-        }
-
-        // Check if rain is active
-        if (rainObject.activeSelf)
-        {
-            StartTransition(rainSkybox);
-            UpdateSkyboxTransition();
-            return;
-        }
-
-        // Set skybox based on camera Y rotation
-        float cameraYRotation = mainCamera.transform.eulerAngles.y;
-        if (cameraYRotation > 180f)
-        {
-            cameraYRotation -= 360f;
-        }
-
-        bool wasDaytime = isDaytime;
-        
-        // Handle transitions between day and night following the order:
-        // Dawn -> Day -> Sunset -> Night -> Dawn
-        if (cameraYRotation >= 180f - transitionAngle && cameraYRotation < 180f)
-        {
-            StartTransition(sunriseSkybox); // Dawn
-            isDaytime = true;
-        }
-        else if (cameraYRotation >= 0f && cameraYRotation < 180f - transitionAngle)
-        {
-            StartTransition(daySkybox); // Day
-            isDaytime = true;
-        }
-        else if (cameraYRotation >= -transitionAngle && cameraYRotation < 0f)
-        {
-            StartTransition(sunsetSkybox); // Sunset
-            isDaytime = false;
-        }
-        else if (cameraYRotation >= -180f && cameraYRotation < -transitionAngle)
-        {
-            StartTransition(nightSkybox); // Night
-            isDaytime = false;
-        }
-        else
-        {
-            StartTransition(sunriseSkybox); // Back to Dawn
-            isDaytime = true;
-        }
-
-        // Update ambience if day/night state changed
-        if (wasDaytime != isDaytime)
-        {
-            UpdateAmbience();
-        }
-
-        UpdateSkyboxTransition();
     }
 }
