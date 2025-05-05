@@ -103,13 +103,14 @@ public class GyroReader : MonoBehaviour
     }
 
     private float rotY = 0f;
+    public float RotYOffset { set; get; } = 0f;
 
     public void Update()
     {
         var rotation = this.transform.rotation;
         var rotX = rotation.eulerAngles.x;
         var rotZ = rotation.eulerAngles.z;
-        rotation = Quaternion.Euler(rotX, rotY, rotZ);
+        rotation = Quaternion.Euler(rotX, rotY + RotYOffset, rotZ);
         this.transform.rotation = rotation;
     }
 }
