@@ -1,6 +1,7 @@
 using UnityEngine;
 using TMPro;
 using System.Text.RegularExpressions;
+using UnityEngine.UI;
 
 public class WeatherController : MonoBehaviour
 {
@@ -12,18 +13,22 @@ public class WeatherController : MonoBehaviour
     [SerializeField] private Material sunriseSkybox;
     [SerializeField] private Material sunsetSkybox;
     [SerializeField] private Material galaxySkybox;
+    [SerializeField] private Material auroraSkybox;
     [SerializeField] private Camera mainCamera;
     [SerializeField, Range(10f, 90f)] private float transitionAngle = 30f;
     [SerializeField] private float transitionSpeed = 2f;
+    [SerializeField] private Light directionalLight;
 
     [Header("Audio")]
     [SerializeField] private AudioSource dayAmbience;
     [SerializeField] private AudioSource nightAmbience;
     [SerializeField] private AudioSource rainAmbience;
     [SerializeField] private AudioSource earthquakeAmbience;
+    [SerializeField] private AudioSource auroraAmbience;
 
     [Header("UI")]
     [SerializeField] private TextMeshProUGUI weatherText;
+    [SerializeField] private Image compassImage; // Reference to UI Image
 
     [Header("Terrain")]
     [SerializeField] private Terrain terrain;
@@ -35,17 +40,24 @@ public class WeatherController : MonoBehaviour
 
     private bool isSnowMode = false;
     private bool isGalaxyMode = false;
+    private bool isAuroraMode = false;
 
     private Material currentSkybox;
     private Material targetSkybox;
     private float transitionProgress = 0f;
     private bool isDaytime = true;
+    private float previousLightIntensity = 8f;
 
     private void Start()
     {
         if (mainCamera == null)
         {
             mainCamera = Camera.main;
+        }
+
+        if (directionalLight == null)
+        {
+            directionalLight = FindObjectOfType<Light>();
         }
 
         currentSkybox = RenderSettings.skybox;
@@ -63,9 +75,16 @@ public class WeatherController : MonoBehaviour
         int hour = Mathf.FloorToInt(normalized / 15f);
         string timeLabel = GetTimeString(hour);
 
+        // Update compass rotation
+        if (compassImage != null)
+        {
+            compassImage.transform.rotation = Quaternion.Euler(0, 0, -mainCamera.transform.eulerAngles.y);
+        }
+
         HandleRainToggle();
         HandleSnowToggle();
         HandleGalaxyToggle();
+        HandleAuroraToggle();
 
         string tempLabel = GetTempString(hour);
 
@@ -78,7 +97,7 @@ public class WeatherController : MonoBehaviour
             tempLabel = AdjustRainTemp(tempLabel, -5);
         }
 
-        if (rainObject.activeSelf && !isGalaxyMode)
+        if (rainObject.activeSelf && !isGalaxyMode && !isAuroraMode)
         {
             StartTransition(rainSkybox);
             if (!isGalaxyMode) UpdateSkyboxTransition();
@@ -94,7 +113,7 @@ public class WeatherController : MonoBehaviour
             UpdateAmbience();
         }
 
-        if (!isGalaxyMode)
+        if (!isGalaxyMode && !isAuroraMode)
         {
             UpdateSkyboxTransition();
         }
@@ -131,42 +150,79 @@ public class WeatherController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.O))
         {
             isGalaxyMode = !isGalaxyMode;
+            isAuroraMode = false;
 
             if (isGalaxyMode)
             {
                 RenderSettings.skybox = galaxySkybox;
+                rainObject.SetActive(false);
+                if (snowParticleObject != null)
+                    snowParticleObject.SetActive(false);
+                isSnowMode = false;
             }
             else
             {
                 // Resume normal skybox behavior
                 StartTransition(currentSkybox);
             }
+            UpdateAmbience();
+        }
+    }
+
+    private void HandleAuroraToggle()
+    {
+        if (Input.GetKeyDown(KeyCode.A))
+        {
+            isAuroraMode = !isAuroraMode;
+            isGalaxyMode = false;
+
+            if (isAuroraMode)
+            {
+                previousLightIntensity = directionalLight.intensity;
+                RenderSettings.skybox = auroraSkybox;
+                rainObject.SetActive(false);
+                if (snowParticleObject != null)
+                    snowParticleObject.SetActive(false);
+                isSnowMode = false;
+                directionalLight.intensity = 0.1f;
+            }
+            else
+            {
+                // Resume normal skybox behavior
+                StartTransition(currentSkybox);
+                directionalLight.intensity = previousLightIntensity;
+            }
+            UpdateAmbience();
         }
     }
 
     private void UpdateTimeWeatherAndSkybox(int hour, string timeLabel, string tempLabel)
     {
-        if (!isGalaxyMode)
+        if (!isGalaxyMode && !isAuroraMode)
         {
             if (hour >= 5 && hour < 7)
             {
                 StartTransition(sunriseSkybox);
                 isDaytime = true;
+                directionalLight.intensity = Mathf.Lerp(0.25f, 8f, (hour - 5f) / 2f);
             }
             else if (hour >= 7 && hour < 17)
             {
                 StartTransition(daySkybox);
                 isDaytime = true;
+                directionalLight.intensity = 8f;
             }
             else if (hour >= 17 && hour < 19)
             {
                 StartTransition(sunsetSkybox);
                 isDaytime = false;
+                directionalLight.intensity = Mathf.Lerp(8f, 0.25f, (hour - 17f) / 2f);
             }
             else
             {
                 StartTransition(nightSkybox);
                 isDaytime = false;
+                directionalLight.intensity = 0.25f;
             }
         }
 
@@ -240,8 +296,13 @@ public class WeatherController : MonoBehaviour
         nightAmbience.Stop();
         rainAmbience.Stop();
         earthquakeAmbience.Stop();
+        auroraAmbience.Stop();
 
-        if (rainObject.activeSelf)
+        if (isAuroraMode)
+        {
+            auroraAmbience.Play();
+        }
+        else if (rainObject.activeSelf)
         {
             rainAmbience.Play();
         }
