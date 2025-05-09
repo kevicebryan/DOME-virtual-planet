@@ -1,17 +1,33 @@
+using System;
 using UnityEngine;
 using UnityEngine;
 using UnityEngine.Networking;
 using System.Collections;
 using System.IO;
 using System.Text;
+using TMPro;
 
 public class AIAgent : MonoBehaviour
 {
+    private bool isRecording = false;
+    [SerializeField] private TextMeshProUGUI tmp;
+
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.S) && !isRecording && !audioSource.isPlaying)
+        {
+            isRecording = true;
+            StartCoroutine(MainRoutine());
+        }
+    }
+
     public AudioSource audioSource;
 
     private string openaiKey = System.Environment.GetEnvironmentVariable("OPENAI_API_KEY");
     private const string WHISPER_API = "https://api.openai.com/v1/audio/transcriptions"; // 或 OpenAI Whisper URL
     private const string GPT_API = "https://api.openai.com/v1/chat/completions";
+    private const string TTS_API = "https://api.openai.com/v1/audio/speech";
+
     private const int MaxRecordSeconds = 15;
 
     private string systemPrompt = @"
@@ -61,6 +77,8 @@ Do **not** explain anything else outside the command block.
     IEnumerator MainRoutine()
     {
         Debug.Log("🎙️ Start recording...");
+
+        tmp.text = "Listening...";
 
         int sampleRate = 16000;
         float silenceThreshold = 0.01f;
@@ -140,6 +158,7 @@ Do **not** explain anything else outside the command block.
     IEnumerator SendToGPT(string userText)
     {
         // TODO: Make it read from the scene
+        tmp.text = "Thinking...";
         string promptContent =
             EscapeJson("{ \"time\": 190, \"weather\": \"Clear\", \"angle\": 270, \"background\": \"Moon\" }\n" +
                        userText);
@@ -165,16 +184,119 @@ Do **not** explain anything else outside the command block.
 
         if (request.result == UnityWebRequest.Result.Success)
         {
-            Debug.Log("🤖 GPT Replied: " + request.downloadHandler.text);
+            string responseJson = request.downloadHandler.text;
+
+            // 解析 GPT 的自然语言回复（你需要处理这个 JSON 结构）
+            GPTResponse gpt = JsonUtility.FromJson<GPTResponse>(responseJson);
+            string gptReply = gpt.choices[0].message.content;
+
+            Debug.Log("🤖 GPT Replied: " + gptReply);
+            string fullReply = gpt.choices[0].message.content;
+            string[] parts = fullReply.Split(new string[] { "<------>" }, System.StringSplitOptions.RemoveEmptyEntries);
+            reply = parts.Length > 1 ? parts[parts.Length - 1].Trim() : fullReply;
+            StartCoroutine(SpeakWithTTS(reply));
         }
         else
         {
+            isRecording = false;
             Debug.LogError(request.error);
+
+            tmp.text = "Error: " + request.error;
         }
     }
+
+    private string reply = "";
 
     private string EscapeJson(string input)
     {
         return input.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "");
+    }
+
+    IEnumerator SpeakWithTTS(string text)
+    {
+        Debug.Log("🗣 Generating speech from: " + text);
+
+        string json = JsonUtility.ToJson(new TTSRequest
+        {
+            model = "gpt-4o-mini-tts",
+            input = text,
+            voice = "coral",
+            response_format = "mp3",
+            instructions = "Speak in a cheerful and positive tone."
+        });
+
+        byte[] postData = Encoding.UTF8.GetBytes(json);
+
+        UnityWebRequest www = new UnityWebRequest(TTS_API, "POST");
+        www.uploadHandler = new UploadHandlerRaw(postData);
+        www.downloadHandler = new DownloadHandlerBuffer();
+        www.SetRequestHeader("Content-Type", "application/json");
+        www.SetRequestHeader("Authorization", "Bearer " + openaiKey);
+
+        yield return www.SendWebRequest();
+
+        if (www.result == UnityWebRequest.Result.Success)
+        {
+            string path = Path.Combine(Application.persistentDataPath, "reply.mp3");
+            File.WriteAllBytes(path, www.downloadHandler.data);
+            tmp.text = reply;
+            StartCoroutine(PlayMp3(path));
+        }
+        else
+        {
+            isRecording = false;
+            Debug.LogError("TTS Error: " + www.error);
+        }
+    }
+
+    IEnumerator PlayMp3(string path)
+    {
+        using (UnityWebRequest www = UnityWebRequestMultimedia.GetAudioClip("file://" + path, AudioType.MPEG))
+        {
+            yield return www.SendWebRequest();
+
+            if (www.result == UnityWebRequest.Result.Success)
+            {
+                AudioClip clip = DownloadHandlerAudioClip.GetContent(www);
+                audioSource.clip = clip;
+                audioSource.Play();
+            }
+            else
+            {
+                Debug.LogError("Failed to load TTS audio: " + www.error);
+            }
+
+            isRecording = false;
+        }
+    }
+
+
+    [System.Serializable]
+    class TTSRequest
+    {
+        public string model;
+        public string input;
+        public string voice;
+        public string response_format;
+        public string instructions;
+    }
+
+    [System.Serializable]
+    public class GPTResponse
+    {
+        public Choice[] choices;
+
+        [System.Serializable]
+        public class Choice
+        {
+            public Message message;
+        }
+
+        [System.Serializable]
+        public class Message
+        {
+            public string role;
+            public string content;
+        }
     }
 }
