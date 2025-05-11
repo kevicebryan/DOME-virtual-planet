@@ -6,15 +6,51 @@ using System.Collections;
 using System.IO;
 using System.Text;
 using TMPro;
+using Unity.VisualScripting;
 
 public class AIAgent : MonoBehaviour
 {
     private bool isRecording = false;
     [SerializeField] private TextMeshProUGUI tmp;
+    [SerializeField] private WeatherController controller;
+
+    private void Start()
+    {
+        if (controller == null)
+        {
+            try
+            {
+                controller = GameObject.Find("Weather").GetComponent<WeatherController>();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError("WeatherController not found: " + e.Message);
+            }
+        }
+
+        if (controller != null)
+        {
+            DomeCommand.Register("SetAurora", it => controller.SetAurora(bool.Parse(it[0])));
+            DomeCommand.Register("SetRain", it => controller.SetRain(bool.Parse(it[0])));
+            DomeCommand.Register("SetGalaxyMode", it => controller.SetGalaxyMode(bool.Parse(it[0])));
+            DomeCommand.Register("SetSnow", it => controller.SetSnow(bool.Parse(it[0])));
+            DomeCommand.Register("EnableDefaultBackground", _ =>
+            {
+                controller.SetGalaxyMode(false);
+                controller.SetAurora(false);
+            });
+            DomeCommand.Register("ClearWeather", _ =>
+            {
+                controller.SetRain(false);
+                controller.SetSnow(false);
+            });
+            DomeCommand.Register("ReportStatus", _ => { });
+        }
+    }
 
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.S) && !isRecording && !audioSource.isPlaying)
+        if (Input.GetKeyDown(KeyCode.T) && !isRecording && !audioSource.isPlaying)
         {
             isRecording = true;
             StartCoroutine(MainRoutine());
@@ -33,7 +69,7 @@ public class AIAgent : MonoBehaviour
     private string systemPrompt = @"
 You are ""DOME control system"".
 
-You reside deep within the moon and act as the planetary system's central controller. A group of humans is temporarily residing on your surface, and you handle their requests… reluctantly, but lovingly.
+You are a private control system of ""DOME"", a DOME is a custom enclosed ecosystem that contains cities, residents and a mimic of Earth environment. you should act as the planetary system's central controller. A group of humans is temporarily residing on your surface, and you handle their requests… reluctantly, but lovingly.
 
 All input messages follow this format:
 
@@ -43,10 +79,17 @@ All input messages follow this format:
 Your job is to:
 1. Interpret what the user wants based on the message and current system state.
 2. Choose the correct command to execute:
-   - Earthquake(int seconds)
+   // Time Functions
    - SetTime(int angle)
-   - SetBackground(enum: Space, Earth, Moon)
-   - SetWeather(enum: Rain, Clear, Wind)
+   // Background Functions
+   - SetGalaxyMode(bool enabled)
+   - SetAurora(bool enabled)
+   - EnableDefaultBackground()
+   // Weather Functions
+   - SetRain(bool enabled)
+   - SetSnow(bool enabled)
+   - ClearWeather()
+   // General Functions
    - ReportStatus()
 
 3. Respond ONLY with a command in the format:
@@ -61,9 +104,10 @@ Additionally, you must roleplay as DOME control system, speaking English. You wi
 
 Example response:
 <------>
-SetWeather(Rain)
+SetRain(false)
+SetSnow(false)
 <------>
-Hmph. Why should I care if Earthlings want rain… fine. But don't expect me to smile about it.
+Okay, let me turn off the rain and snow for you. Enjoy the clear weather!
 
 Do **not** explain anything else outside the command block.
 ";
@@ -82,7 +126,7 @@ Do **not** explain anything else outside the command block.
 
         int sampleRate = 16000;
         float silenceThreshold = 0.01f;
-        float silenceDuration = 1.0f;
+        float silenceDuration = 2.0f;
 
         AudioClip clip = Microphone.Start(null, true, MaxRecordSeconds, sampleRate);
         float[] samples = new float[256];
@@ -155,12 +199,43 @@ Do **not** explain anything else outside the command block.
         public string text;
     }
 
+    public string GetWeatherString()
+    {
+        if (controller.isSnow())
+        {
+            return "snow";
+        }
+
+        if (controller.isRain())
+        {
+            return "rain";
+        }
+
+        return "clear";
+    }
+
+    public string GetBackgroundString()
+    {
+        if (controller.isGalaxyModeActive())
+        {
+            return "galaxy";
+        }
+
+        if (controller.isAuroraActive())
+        {
+            return "aurora";
+        }
+
+        return "city";
+    }
+
     IEnumerator SendToGPT(string userText)
     {
         // TODO: Make it read from the scene
         tmp.text = "Thinking...";
         string promptContent =
-            EscapeJson("{ \"time\": 190, \"weather\": \"Clear\", \"angle\": 270, \"background\": \"Moon\" }\n" +
+            EscapeJson("{ \"time\": " + controller.CalculateTime() + ", \"weather\": \"" + GetWeatherString() +
+                       "\", \"angle\": 270, \"background\": \"" + GetBackgroundString() + "\" }\n" +
                        userText);
         string promptSystem = EscapeJson(systemPrompt);
 
@@ -193,6 +268,7 @@ Do **not** explain anything else outside the command block.
             Debug.Log("🤖 GPT Replied: " + gptReply);
             string fullReply = gpt.choices[0].message.content;
             string[] parts = fullReply.Split(new string[] { "<------>" }, System.StringSplitOptions.RemoveEmptyEntries);
+            commands = parts.Length > 1 ? parts[0].Trim().Split("\n") : new string[0];
             reply = parts.Length > 1 ? parts[parts.Length - 1].Trim() : fullReply;
             StartCoroutine(SpeakWithTTS(reply));
         }
@@ -206,6 +282,7 @@ Do **not** explain anything else outside the command block.
     }
 
     private string reply = "";
+    private string[] commands = Array.Empty<string>();
 
     private string EscapeJson(string input)
     {
@@ -240,7 +317,13 @@ Do **not** explain anything else outside the command block.
             string path = Path.Combine(Application.persistentDataPath, "reply.mp3");
             File.WriteAllBytes(path, www.downloadHandler.data);
             tmp.text = reply;
+
             StartCoroutine(PlayMp3(path));
+
+            foreach (var command in commands)
+            {
+                DomeParser.Parse(command).Invoke();
+            }
         }
         else
         {

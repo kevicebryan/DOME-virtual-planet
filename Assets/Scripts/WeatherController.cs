@@ -5,8 +5,9 @@ using UnityEngine.UI;
 
 public class WeatherController : MonoBehaviour
 {
-    [Header("Skyboxes & Camera")]
-    [SerializeField] private GameObject rainObject;
+    [Header("Skyboxes & Camera")] [SerializeField]
+    private GameObject rainObject;
+
     [SerializeField] private Material daySkybox;
     [SerializeField] private Material nightSkybox;
     [SerializeField] private Material rainSkybox;
@@ -19,24 +20,20 @@ public class WeatherController : MonoBehaviour
     [SerializeField] private float transitionSpeed = 2f;
     [SerializeField] private Light directionalLight;
 
-    [Header("Audio")]
-    [SerializeField] private AudioSource dayAmbience;
+    [Header("Audio")] [SerializeField] private AudioSource dayAmbience;
     [SerializeField] private AudioSource nightAmbience;
     [SerializeField] private AudioSource rainAmbience;
     [SerializeField] private AudioSource earthquakeAmbience;
     [SerializeField] private AudioSource auroraAmbience;
 
-    [Header("UI")]
-    [SerializeField] private TextMeshProUGUI weatherText;
+    [Header("UI")] [SerializeField] private TextMeshProUGUI weatherText;
     [SerializeField] private Image compassImage; // Reference to UI Image
 
-    [Header("Terrain")]
-    [SerializeField] private Terrain terrain;
+    [Header("Terrain")] [SerializeField] private Terrain terrain;
     [SerializeField] private TerrainLayer normalLayer;
     [SerializeField] private TerrainLayer snowLayer;
 
-    [Header("Particles")]
-    [SerializeField] private GameObject snowParticleObject;
+    [Header("Particles")] [SerializeField] private GameObject snowParticleObject;
 
     private bool isSnowMode = false;
     private bool isGalaxyMode = false;
@@ -66,6 +63,15 @@ public class WeatherController : MonoBehaviour
 
         if (snowParticleObject != null)
             snowParticleObject.SetActive(false);
+    }
+
+    public string CalculateTime()
+    {
+        float cameraY = NormalizeAngle(mainCamera.transform.eulerAngles.y);
+        float normalized = (cameraY + 180f) % 360f;
+        int hour = Mathf.FloorToInt(normalized / 15f);
+        string timeLabel = GetTimeString(hour);
+        return timeLabel;
     }
 
     private void Update()
@@ -128,72 +134,122 @@ public class WeatherController : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.R))
         {
-            rainObject.SetActive(!rainObject.activeSelf);
-            UpdateAmbience();
+            SetRain(!rainObject.activeSelf);
         }
+    }
+
+    public void SetRain(bool rain)
+    {
+        rainObject.SetActive(rain);
+        UpdateAmbience();
+    }
+
+    public bool isRain()
+    {
+        return rainObject.activeSelf;
     }
 
     private void HandleSnowToggle()
     {
         if (Input.GetKeyDown(KeyCode.S))
         {
-            isSnowMode = !isSnowMode;
-            ApplyTerrainLayer(isSnowMode ? snowLayer : normalLayer);
-
-            if (snowParticleObject != null)
-                snowParticleObject.SetActive(isSnowMode);
+            SetSnow(!isSnowMode);
         }
+    }
+
+    public void SetSnow(bool snow)
+    {
+        isSnowMode = snow;
+        ApplyTerrainLayer(isSnowMode ? snowLayer : normalLayer);
+
+        if (snowParticleObject != null)
+            snowParticleObject.SetActive(isSnowMode);
+
+        UpdateAmbience();
+    }
+
+    public bool isSnow()
+    {
+        return isSnowMode;
     }
 
     private void HandleGalaxyToggle()
     {
         if (Input.GetKeyDown(KeyCode.O))
         {
-            isGalaxyMode = !isGalaxyMode;
-            isAuroraMode = false;
-
-            if (isGalaxyMode)
-            {
-                RenderSettings.skybox = galaxySkybox;
-                rainObject.SetActive(false);
-                if (snowParticleObject != null)
-                    snowParticleObject.SetActive(false);
-                isSnowMode = false;
-            }
-            else
-            {
-                // Resume normal skybox behavior
-                StartTransition(currentSkybox);
-            }
-            UpdateAmbience();
+            SetGalaxyMode(!isGalaxyMode);
         }
+    }
+
+    public bool isGalaxyModeActive()
+    {
+        return isGalaxyMode;
+    }
+
+    public bool isAuroraActive()
+    {
+        return isAuroraMode;
+    }
+
+    public void SetGalaxyMode(bool galaxy)
+    {
+        isGalaxyMode = galaxy;
+        isAuroraMode = false;
+
+        if (isGalaxyMode)
+        {
+            RenderSettings.skybox = galaxySkybox;
+            rainObject.SetActive(false);
+            if (snowParticleObject != null)
+                snowParticleObject.SetActive(false);
+            isSnowMode = false;
+        }
+        else
+        {
+            // Resume normal skybox behavior
+            StartTransition(currentSkybox);
+        }
+
+        UpdateAmbience();
     }
 
     private void HandleAuroraToggle()
     {
         if (Input.GetKeyDown(KeyCode.A))
         {
-            isAuroraMode = !isAuroraMode;
-            isGalaxyMode = false;
-
-            if (isAuroraMode)
-            {
-                previousLightIntensity = directionalLight.intensity;
-                RenderSettings.skybox = auroraSkybox;
-                rainObject.SetActive(false);
-                if (snowParticleObject != null)
-                    snowParticleObject.SetActive(false);
-                isSnowMode = false;
-                directionalLight.intensity = 0.1f;
-            }
-            else
-            {
-                // Resume normal skybox behavior
-                StartTransition(currentSkybox);
-                directionalLight.intensity = previousLightIntensity;
-            }
-            UpdateAmbience();
+            SetAurora(!isAuroraMode);
         }
+    }
+
+    public void EnableDefaultBackground()
+    {
+        SetGalaxyMode(false);
+        SetAurora(false);
+    }
+
+    public void SetAurora(bool aurora)
+    {
+        isAuroraMode = aurora;
+        isGalaxyMode = false;
+
+        if (isAuroraMode)
+        {
+            previousLightIntensity = directionalLight.intensity;
+            RenderSettings.skybox = auroraSkybox;
+            rainObject.SetActive(false);
+            if (snowParticleObject != null)
+                snowParticleObject.SetActive(false);
+            isSnowMode = false;
+            directionalLight.intensity = 0.1f;
+        }
+        else
+        {
+            // Resume normal skybox behavior
+            StartTransition(currentSkybox);
+            directionalLight.intensity = previousLightIntensity;
+        }
+
+        UpdateAmbience();
     }
 
     private void UpdateTimeWeatherAndSkybox(int hour, string timeLabel, string tempLabel)
@@ -238,7 +294,8 @@ public class WeatherController : MonoBehaviour
 
     private string GetTempString(int hour)
     {
-        int[] tempByHour = {
+        int[] tempByHour =
+        {
             10, 10, 10, 12, 14, 16, 18, 20, 23, 25, 27, 28,
             30, 30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10
         };
@@ -254,6 +311,7 @@ public class WeatherController : MonoBehaviour
             int temp = int.Parse(match.Value) + delta;
             return $"TEMP: {temp}'C";
         }
+
         return tempString;
     }
 
