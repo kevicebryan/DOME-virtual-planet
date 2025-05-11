@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class GyroReader : MonoBehaviour
 {
@@ -105,6 +106,16 @@ public class GyroReader : MonoBehaviour
     private float rotY = 0f;
     public float RotYOffset { set; get; } = 0f;
 
+
+    private float lastY = 0f;
+    private float checkTimer = 0f;
+
+    public bool interacted = false;
+
+
+    public float checkInterval = 1f;
+    public float threshold = 5f;
+
     public void Update()
     {
         var rotation = this.transform.rotation;
@@ -112,5 +123,15 @@ public class GyroReader : MonoBehaviour
         var rotZ = rotation.eulerAngles.z;
         rotation = Quaternion.Euler(rotX, rotY + RotYOffset, rotZ);
         this.transform.rotation = rotation;
+        checkTimer += Time.deltaTime;
+        if (checkTimer >= checkInterval)
+        {
+            float currentY = rotY + RotYOffset;
+            float delta = Mathf.DeltaAngle(lastY, currentY);
+
+            interacted = Mathf.Abs(delta) > threshold;
+            lastY = currentY;
+            checkTimer = 0f;
+        }
     }
 }

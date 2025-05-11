@@ -348,8 +348,11 @@ public class WeatherController : MonoBehaviour
         RenderSettings.skybox = transitionMat;
     }
 
+    public bool interacted = false;
+
     private void UpdateAmbience()
     {
+        interacted = true;
         dayAmbience.Stop();
         nightAmbience.Stop();
         rainAmbience.Stop();

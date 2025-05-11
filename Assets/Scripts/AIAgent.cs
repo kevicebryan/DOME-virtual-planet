@@ -16,6 +16,11 @@ public class AIAgent : MonoBehaviour
 
     private void Start()
     {
+        if (gameObject.GetComponent<InteractionListener>() == null)
+        {
+            gameObject.AddComponent<InteractionListener>();
+        }
+
         if (controller == null)
         {
             try
@@ -73,7 +78,7 @@ You are a private control system of ""DOME"", a DOME is a custom enclosed ecosys
 
 All input messages follow this format:
 
-{ ""time"": <int>, ""weather"": ""Rain|Clear|Wind"", ""angle"": <0~360>, ""background"": ""Space|Earth|Moon"" }
+{ ""time"": <int>, ""weather"": ""rain|normal|snow"", ""angle"": <0~360>, ""background"": ""galaxy|aurora|default"" }
 <user message in natural English>
 
 Your job is to:
@@ -112,9 +117,11 @@ Okay, let me turn off the rain and snow for you. Enjoy the clear weather!
 Do **not** explain anything else outside the command block.
 ";
 
+    public bool interacted = false;
 
     public void StartVoiceInteraction()
     {
+        interacted = true;
         StartCoroutine(MainRoutine());
     }
 
@@ -240,7 +247,7 @@ Do **not** explain anything else outside the command block.
         string promptSystem = EscapeJson(systemPrompt);
 
         string json = "{\n" +
-                      "\"model\": \"gpt-4o\",\n" +
+                      "\"model\": \"gpt-4.1\",\n" +
                       "\"messages\": [\n" +
                       "  { \"role\": \"system\", \"content\": \"" + promptSystem + "\" },\n" +
                       "  { \"role\": \"user\", \"content\": \"" + promptContent + "\" }\n" +
@@ -261,7 +268,6 @@ Do **not** explain anything else outside the command block.
         {
             string responseJson = request.downloadHandler.text;
 
-            // 解析 GPT 的自然语言回复（你需要处理这个 JSON 结构）
             GPTResponse gpt = JsonUtility.FromJson<GPTResponse>(responseJson);
             string gptReply = gpt.choices[0].message.content;
 
