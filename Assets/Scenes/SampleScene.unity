@@ -1184,6 +1184,9 @@ MonoBehaviour:
   server: 192.168.8.115
   port: 80
   eventsPath: /events
+  interacted: 0
+  checkInterval: 1
+  threshold: 5
 --- !u!114 &330585550
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1197,7 +1200,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   tmp: {fileID: 1700611351}
+  controller: {fileID: 0}
   audioSource: {fileID: 2042604627}
+  interacted: 0
 --- !u!4 &340100975 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 761423922505811801, guid: f4845b8f8d5ae6e4d8a06fa1c2045e52, type: 3}
@@ -2453,6 +2458,19 @@ MonoBehaviour:
   normalLayer: {fileID: 8574412962073106934, guid: f875e4258709617468478b12cd9d2e21, type: 2}
   snowLayer: {fileID: 8574412962073106934, guid: fc4387ca796bbb94a967aa257b02f1de, type: 2}
   snowParticleObject: {fileID: 1808011328}
+  springColor: {r: 0.5, g: 1, b: 0.5, a: 1}
+  summerColor: {r: 1, g: 1, b: 0.5, a: 1}
+  autumnColor: {r: 1, g: 0.5, b: 0, a: 1}
+  winterColor: {r: 0.8, g: 0.9, b: 1, a: 1}
+  rainParticleSystem: {fileID: 2089306866}
+  rainAudioSource: {fileID: 731115234}
+  maxRainIntensity: 20
+  minRainIntensity: 1
+  maxRainVolume: 1
+  minRainVolume: 0.1
+  isRotatingRainIntensity: 0
+  isRotatingSeason: 0
+  interacted: 0
 --- !u!1001 &984644771
 PrefabInstance:
   m_ObjectHideFlags: 0

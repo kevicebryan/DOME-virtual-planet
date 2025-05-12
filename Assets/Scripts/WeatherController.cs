@@ -7,7 +7,6 @@ public class WeatherController : MonoBehaviour
 {
     [Header("Skyboxes & Camera")] [SerializeField]
     private GameObject rainObject;
-
     [SerializeField] private Material daySkybox;
     [SerializeField] private Material nightSkybox;
     [SerializeField] private Material rainSkybox;
@@ -34,6 +33,34 @@ public class WeatherController : MonoBehaviour
     [SerializeField] private TerrainLayer snowLayer;
 
     [Header("Particles")] [SerializeField] private GameObject snowParticleObject;
+
+    [Header("Season Colors")]
+    [SerializeField] private Color springColor = new Color(0.5f, 1f, 0.5f); // Lime
+    [SerializeField] private Color summerColor = new Color(1f, 1f, 0.5f); // Yellow
+    [SerializeField] private Color autumnColor = new Color(1f, 0.5f, 0f); // Orange
+    [SerializeField] private Color winterColor = new Color(0.8f, 0.9f, 1f); // Light ice blue
+
+    [Header("Rain Settings")]
+    [SerializeField] private ParticleSystem rainParticleSystem;
+    [SerializeField] private AudioSource rainAudioSource;
+    [SerializeField, Range(1f, 20f)] private float maxRainIntensity = 20f;
+    [SerializeField, Range(1f, 20f)] private float minRainIntensity = 1f;
+    [SerializeField, Range(0.1f, 1f)] private float maxRainVolume = 1f;
+    [SerializeField, Range(0.1f, 1f)] private float minRainVolume = 0.1f;
+
+    [Header("Rotation Controls")]
+    [SerializeField] private bool isRotatingRainIntensity = false;
+    [SerializeField] private bool isRotatingSeason = false;
+
+    private Season currentSeason = Season.Spring;
+
+    private enum Season
+    {
+        Spring,
+        Summer,
+        Autumn,
+        Winter
+    }
 
     private bool isSnowMode = false;
     private bool isGalaxyMode = false;
@@ -91,8 +118,13 @@ public class WeatherController : MonoBehaviour
         HandleSnowToggle();
         HandleGalaxyToggle();
         HandleAuroraToggle();
+        HandleRainIntensityRotation();
+        HandleSeasonRotation();
 
         string tempLabel = GetTempString(hour);
+
+        // Adjust temperature based on season
+        tempLabel = AdjustSeasonTemp(tempLabel);
 
         if (isSnowMode)
         {
@@ -153,7 +185,11 @@ public class WeatherController : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.S))
         {
-            SetSnow(!isSnowMode);
+            // Only allow snow toggle if not in winter (winter handles snow automatically)
+            if (currentSeason != Season.Winter)
+            {
+                SetSnow(!isSnowMode);
+            }
         }
     }
 
@@ -315,6 +351,51 @@ public class WeatherController : MonoBehaviour
         return tempString;
     }
 
+    private string AdjustSeasonTemp(string tempString)
+    {
+        Match match = Regex.Match(tempString, @"\d+");
+        if (match.Success)
+        {
+            int baseTemp = int.Parse(match.Value);
+            int adjustedTemp = baseTemp;
+
+            switch (currentSeason)
+            {
+                case Season.Spring:
+                    adjustedTemp = baseTemp - 2;
+                    break;
+                case Season.Summer:
+                    adjustedTemp = baseTemp + 5;
+                    break;
+                case Season.Autumn:
+                    adjustedTemp = baseTemp - 3;
+                    break;
+                case Season.Winter:
+                    adjustedTemp = baseTemp - 10;
+                    break;
+            }
+
+            // Additional temperature adjustments based on time of day
+            float cameraY = NormalizeAngle(mainCamera.transform.eulerAngles.y);
+            float normalized = (cameraY + 180f) % 360f;
+            int hour = Mathf.FloorToInt(normalized / 15f);
+
+            // Cooler at night, warmer during day
+            if (hour >= 22 || hour < 5) // Night hours
+            {
+                adjustedTemp -= 3;
+            }
+            else if (hour >= 12 && hour < 15) // Peak day hours
+            {
+                adjustedTemp += 2;
+            }
+
+            return $"TEMP: {adjustedTemp}'C";
+        }
+
+        return tempString;
+    }
+
     private void UpdateWeatherText(string header, string time, string temp)
     {
         weatherText.text = $"{header}\n{time}\n{temp}";
@@ -396,5 +477,108 @@ public class WeatherController : MonoBehaviour
         }
 
         data.SetAlphamaps(0, 0, map);
+    }
+
+    private void HandleRainIntensityRotation()
+    {
+        if (Input.GetKeyDown(KeyCode.Comma))
+        {
+            isRotatingRainIntensity = !isRotatingRainIntensity;
+            if (isRotatingRainIntensity)
+            {
+                SetRain(true);
+            }
+        }
+
+        if (isRotatingRainIntensity && rainParticleSystem != null)
+        {
+            float cameraY = NormalizeAngle(mainCamera.transform.eulerAngles.y);
+            float normalized = (cameraY + 180f) % 360f;
+            float intensity = Mathf.Lerp(minRainIntensity, maxRainIntensity, normalized / 360f);
+            
+            var main = rainParticleSystem.main;
+            main.simulationSpeed = intensity;
+
+            // Adjust rain audio volume
+            if (rainAudioSource != null)
+            {
+                rainAudioSource.volume = Mathf.Lerp(minRainVolume, maxRainVolume, normalized / 360f);
+            }
+        }
+    }
+
+    private void HandleSeasonRotation()
+    {
+        if (Input.GetKeyDown(KeyCode.Period))
+        {
+            isRotatingSeason = !isRotatingSeason;
+        }
+
+        if (isRotatingSeason)
+        {
+            float cameraY = NormalizeAngle(mainCamera.transform.eulerAngles.y);
+            float normalized = (cameraY + 180f) % 360f;
+            
+            // Update season based on camera rotation
+            float seasonValue = normalized / 360f;
+            if (seasonValue < 0.25f)
+            {
+                UpdateSeason(Season.Spring);
+            }
+            else if (seasonValue < 0.5f)
+            {
+                UpdateSeason(Season.Summer);
+            }
+            else if (seasonValue < 0.75f)
+            {
+                UpdateSeason(Season.Autumn);
+            }
+            else
+            {
+                UpdateSeason(Season.Winter);
+            }
+        }
+    }
+
+    private void UpdateSeason(Season newSeason)
+    {
+        if (currentSeason == newSeason) return;
+        
+        // If we're leaving winter, turn off snow
+        if (currentSeason == Season.Winter && newSeason != Season.Winter)
+        {
+            SetSnow(false);
+        }
+        
+        currentSeason = newSeason;
+        Color targetColor = GetSeasonColor(newSeason);
+        
+        if (directionalLight != null)
+        {
+            directionalLight.color = targetColor;
+        }
+
+        // Handle snow for winter
+        if (newSeason == Season.Winter)
+        {
+            SetSnow(true);
+        }
+    }
+
+    private Color GetSeasonColor(Season season)
+    {
+        switch (season)
+        {
+            case Season.Spring:
+                return springColor;
+            case Season.Summer:
+                return summerColor;
+            case Season.Autumn:
+                return autumnColor;
+            case Season.Winter:
+                return winterColor;
+            default:
+                return Color.white;
+        }
     }
 }
