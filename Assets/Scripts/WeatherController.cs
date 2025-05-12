@@ -6,7 +6,8 @@ using UnityEngine.UI;
 public class WeatherController : MonoBehaviour
 {
     [Header("Skyboxes & Camera")] [SerializeField]
-    private GameObject rainObject;
+    public GyroReader gyroReader;
+    public GameObject rainObject;
     [SerializeField] private Material daySkybox;
     [SerializeField] private Material nightSkybox;
     [SerializeField] private Material rainSkybox;
@@ -53,6 +54,10 @@ public class WeatherController : MonoBehaviour
     [SerializeField] private bool isRotatingSeason = false;
 
     private Season currentSeason = Season.Spring;
+    private Color currentSeasonColor;
+    private Color targetSeasonColor;
+    private float seasonTransitionProgress = 1f;
+    private const float SEASON_TRANSITION_SPEED = 2f;
 
     private enum Season
     {
@@ -85,6 +90,8 @@ public class WeatherController : MonoBehaviour
         }
 
         currentSkybox = RenderSettings.skybox;
+        currentSeasonColor = GetSeasonColor(currentSeason);
+        targetSeasonColor = currentSeasonColor;
         UpdateAmbience();
         ApplyTerrainLayer(normalLayer);
 
@@ -94,7 +101,7 @@ public class WeatherController : MonoBehaviour
 
     public string CalculateTime()
     {
-        float cameraY = NormalizeAngle(mainCamera.transform.eulerAngles.y);
+        float cameraY = NormalizeAngle(gyroReader.GetRotY(0));
         float normalized = (cameraY + 180f) % 360f;
         int hour = Mathf.FloorToInt(normalized / 15f);
         string timeLabel = GetTimeString(hour);
@@ -103,13 +110,16 @@ public class WeatherController : MonoBehaviour
 
     private void Update()
     {
-        float cameraY = NormalizeAngle(mainCamera.transform.eulerAngles.y);
+        isRotatingRainIntensity = gyroReader.currentMode == 2;
+        isRotatingSeason = gyroReader.currentMode == 1;
+
+        float cameraY = NormalizeAngle(gyroReader.GetRotY(0));
         float normalized = (cameraY + 180f) % 360f;
         int hour = Mathf.FloorToInt(normalized / 15f);
         string timeLabel = GetTimeString(hour);
 
-        // Update compass rotation
-        if (compassImage != null)
+        // Update compass rotation only when in clock mode (mode 0)
+        if (compassImage != null && gyroReader.currentMode == 0)
         {
             compassImage.transform.rotation = Quaternion.Euler(0, 0, -mainCamera.transform.eulerAngles.y);
         }
@@ -120,6 +130,22 @@ public class WeatherController : MonoBehaviour
         HandleAuroraToggle();
         HandleRainIntensityRotation();
         HandleSeasonRotation();
+
+        // Update season color transition
+        if (seasonTransitionProgress < 1f)
+        {
+            seasonTransitionProgress += Time.deltaTime * SEASON_TRANSITION_SPEED;
+            if (seasonTransitionProgress >= 1f)
+            {
+                seasonTransitionProgress = 1f;
+                currentSeasonColor = targetSeasonColor;
+            }
+            
+            if (directionalLight != null)
+            {
+                directionalLight.color = Color.Lerp(currentSeasonColor, targetSeasonColor, seasonTransitionProgress);
+            }
+        }
 
         string tempLabel = GetTempString(hour);
 
@@ -376,7 +402,7 @@ public class WeatherController : MonoBehaviour
             }
 
             // Additional temperature adjustments based on time of day
-            float cameraY = NormalizeAngle(mainCamera.transform.eulerAngles.y);
+            float cameraY = NormalizeAngle(gyroReader.GetRotY(1));
             float normalized = (cameraY + 180f) % 360f;
             int hour = Mathf.FloorToInt(normalized / 15f);
 
@@ -492,7 +518,7 @@ public class WeatherController : MonoBehaviour
 
         if (isRotatingRainIntensity && rainParticleSystem != null)
         {
-            float cameraY = NormalizeAngle(mainCamera.transform.eulerAngles.y);
+            float cameraY = NormalizeAngle(gyroReader.GetRotY(2));
             float normalized = (cameraY + 180f) % 360f;
             float intensity = Mathf.Lerp(minRainIntensity, maxRainIntensity, normalized / 360f);
             
@@ -516,7 +542,13 @@ public class WeatherController : MonoBehaviour
 
         if (isRotatingSeason)
         {
-            float cameraY = NormalizeAngle(mainCamera.transform.eulerAngles.y);
+            float cameraY = NormalizeAngle(gyroReader.GetRotY(1));
+            SetSeason(cameraY);
+        }
+    }
+
+    public void SetSeason(float cameraY){
+
             float normalized = (cameraY + 180f) % 360f;
             
             // Update season based on camera rotation
@@ -537,9 +569,8 @@ public class WeatherController : MonoBehaviour
             {
                 UpdateSeason(Season.Winter);
             }
-        }
+            UpdateAmbience();
     }
-
     private void UpdateSeason(Season newSeason)
     {
         if (currentSeason == newSeason) return;
@@ -551,12 +582,9 @@ public class WeatherController : MonoBehaviour
         }
         
         currentSeason = newSeason;
-        Color targetColor = GetSeasonColor(newSeason);
-        
-        if (directionalLight != null)
-        {
-            directionalLight.color = targetColor;
-        }
+        currentSeasonColor = directionalLight.color;
+        targetSeasonColor = GetSeasonColor(newSeason);
+        seasonTransitionProgress = 0f;
 
         // Handle snow for winter
         if (newSeason == Season.Winter)

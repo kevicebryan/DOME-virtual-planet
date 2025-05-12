@@ -11,9 +11,9 @@ public class CameraController : MonoBehaviour
 
     void Update()
     {
-        float scrollInput = Input.GetAxis("Mouse ScrollWheel");
-        Vector3 newRotation = transform.eulerAngles;
-        newRotation.y += scrollInput * scrollSpeed;
-        transform.eulerAngles = newRotation;
+    //     float scrollInput = Input.GetAxis("Mouse ScrollWheel");
+    //     Vector3 newRotation = transform.eulerAngles;
+    //     newRotation.y += scrollInput * scrollSpeed;
+    //     transform.eulerAngles = newRotation;
     }
 }

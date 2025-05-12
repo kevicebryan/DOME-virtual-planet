@@ -1105,13 +1105,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.21643952, y: 0, z: 0, w: 0.97629607}
-  m_LocalPosition: {x: 500, y: 4, z: 500}
+  m_LocalRotation: {x: -0.043619405, y: 0, z: 0, w: 0.9990483}
+  m_LocalPosition: {x: 500, y: 7, z: 500}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: -25, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: -5, y: 0, z: 0}
 --- !u!114 &330585547
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1176,17 +1176,20 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3cbe73def9abecb45b11d6d07fe45106, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  controller: {fileID: 975881816}
   server: 192.168.8.115
   port: 80
   eventsPath: /events
   interacted: 0
   checkInterval: 1
   threshold: 5
+  currentMode: 0
+  scrollSpeed: 20
 --- !u!114 &330585550
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1200,7 +1203,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   tmp: {fileID: 1700611351}
-  controller: {fileID: 0}
+  controller: {fileID: 975881816}
   audioSource: {fileID: 2042604627}
   interacted: 0
 --- !u!4 &340100975 stripped
@@ -2435,6 +2438,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9448b94eb4305430db8381110608adb6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gyroReader: {fileID: 330585549}
   rainObject: {fileID: 2142703945}
   daySkybox: {fileID: 2100000, guid: 7416536dbe0334cfd888dd1beb75a9fb, type: 2}
   nightSkybox: {fileID: 2100000, guid: 51b74d7bad397457d883c5940f7664d8, type: 2}

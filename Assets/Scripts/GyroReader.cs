@@ -4,21 +4,61 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.Serialization;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 public class GyroReader : MonoBehaviour
 {
+    public WeatherController controller;
     private TcpClient client;
     private NetworkStream stream;
     private StreamReader reader;
     private Thread listenThread;
     private Action<double> onGyroZUpdate;
+    private HttpClient httpClient;
 
     public string server = "192.168.8.115";
     public int port = 80;
     public string eventsPath = "/events";
 
     private bool running = false;
+
+    private void Awake()
+    {
+        httpClient = new HttpClient();
+        httpClient.BaseAddress = new Uri($"http://{server}:{port}");
+    }
+
+    public async void ResetZ()
+    {
+        try
+        {
+            var response = await httpClient.GetAsync("/resetZ");
+            if (response.IsSuccessStatusCode)
+            {
+                Debug.Log("Gyro Z reset triggered");
+                // Reset the current rotation offset for the current mode
+                RotOffset[currentMode] = 0f;
+                rotY = 0f;
+                lastY = 0f;
+            }
+            else
+            {
+                Debug.LogError($"Reset failed: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Reset failed: {ex.Message}");
+        }
+    }
+
+    private void OnDestroy()
+    {
+        httpClient?.Dispose();
+    }
 
     public void StartListening(Action<double> callback)
     {
@@ -56,7 +96,7 @@ public class GyroReader : MonoBehaviour
             // Skip HTTP headers
             string line;
             while (!string.IsNullOrEmpty(line = reader.ReadLine()))
-            {
+            { 
                 Debug.Log("[HEADER] " + line);
             }
 
@@ -104,7 +144,6 @@ public class GyroReader : MonoBehaviour
     }
 
     private float rotY = 0f;
-    public float RotYOffset { set; get; } = 0f;
 
 
     private float lastY = 0f;
@@ -116,17 +155,45 @@ public class GyroReader : MonoBehaviour
     public float checkInterval = 1f;
     public float threshold = 5f;
 
+    public float GetRotY(int mode = 0)
+    {
+        return ((mode == currentMode) ? rotY : 0) + RotOffset[mode];
+    }
+
+    public void SetMode(int mode){
+        RotOffset[currentMode] = GetRotY();
+        currentMode = mode;
+        //ResetZ();
+    }
+    public int currentMode = 0;
+    float[] RotOffset = new [] {0,0,0f};
+
+    [SerializeField] private float scrollSpeed = 20f;
     public void Update()
     {
+        if (Input.GetKey(KeyCode.P)){
+            if(currentMode == 0){
+                currentMode = 1;
+                SetMode(currentMode);
+            }
+        }else if(currentMode != 0){
+            currentMode = 0;
+            SetMode(currentMode);
+        }
+
+        float scrollInput = Input.GetAxis("Mouse ScrollWheel");
+        RotOffset[currentMode] += scrollInput * scrollSpeed;
+        
+
         var rotation = this.transform.rotation;
         var rotX = rotation.eulerAngles.x;
         var rotZ = rotation.eulerAngles.z;
-        rotation = Quaternion.Euler(rotX, rotY + RotYOffset, rotZ);
+        rotation = Quaternion.Euler(rotX, GetRotY(currentMode), rotZ);
         this.transform.rotation = rotation;
         checkTimer += Time.deltaTime;
         if (checkTimer >= checkInterval)
         {
-            float currentY = rotY + RotYOffset;
+            float currentY = GetRotY();
             float delta = Mathf.DeltaAngle(lastY, currentY);
 
             interacted = Mathf.Abs(delta) > threshold;
