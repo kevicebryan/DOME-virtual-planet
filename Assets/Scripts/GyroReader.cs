@@ -58,6 +58,8 @@ public class GyroReader : MonoBehaviour
     private void OnDestroy()
     {
         httpClient?.Dispose();
+        listenThread?.Abort();
+        buttonListenThread?.Abort();
     }
 
     public void StartListening(Action<double> callback)
@@ -96,7 +98,7 @@ public class GyroReader : MonoBehaviour
             // Skip HTTP headers
             string line;
             while (!string.IsNullOrEmpty(line = reader.ReadLine()))
-            { 
+            {
                 Debug.Log("[HEADER] " + line);
             }
 
@@ -136,11 +138,32 @@ public class GyroReader : MonoBehaviour
     private class GyroReadingData
     {
         public double gyroZ;
+        public bool button1;
+        public bool button2;
+        public bool button3;
+    }
+
+    public LEDController led;
+    public bool[] buttons = new bool[5];
+
+    [Serializable]
+    private class ButtonData
+    {
+        public bool button1;
+        public bool button2;
+        public bool button3;
+        public bool button4;
+        public bool button5;
     }
 
     public void Start()
     {
-        this.StartListening(it => { rotY = (float)it * 360; });
+        StartListening(it => { rotY = (float)it * 360; });
+        StartButtonListening();
+        if (gameObject.GetComponent<LEDController>() == null)
+        {
+            led = gameObject.AddComponent<LEDController>();
+        }
     }
 
     private float rotY = 0f;
@@ -154,42 +177,110 @@ public class GyroReader : MonoBehaviour
 
     public float checkInterval = 1f;
     public float threshold = 5f;
+    private Thread buttonListenThread;
+
+    public void StartButtonListening()
+    {
+        buttonListenThread = new Thread(() => ListenToData("/data"));
+        buttonListenThread.Start();
+    }
+
+    private void ListenToData(string path)
+    {
+        try
+        {
+            using (TcpClient dataClient = new TcpClient("192.168.8.185", 80))
+            using (NetworkStream dataStream = dataClient.GetStream())
+            using (StreamReader dataReader = new StreamReader(dataStream, Encoding.UTF8))
+            {
+                string request = $"GET {path} HTTP/1.1\r\n" +
+                                 $"Host: 192.168.8.185\r\n" +
+                                 $"Accept: text/event-stream\r\n" +
+                                 $"Connection: keep-alive\r\n\r\n";
+                byte[] requestBytes = Encoding.UTF8.GetBytes(request);
+                dataStream.Write(requestBytes, 0, requestBytes.Length);
+                dataStream.Flush();
+
+                string line;
+                while (!string.IsNullOrEmpty(line = dataReader.ReadLine()))
+                {
+                    Debug.Log("[DATA HEADER] " + line);
+                }
+
+                while (true)
+                {
+                    string eventLine = dataReader.ReadLine();
+                    if (eventLine == null) break;
+
+                    if (eventLine.StartsWith("data:"))
+                    {
+                        string jsonData = eventLine.Substring(5).Trim();
+                        try
+                        {
+                            ButtonData buttonData = JsonUtility.FromJson<ButtonData>(jsonData);
+                            buttons[0] = buttonData.button1;
+                            buttons[1] = buttonData.button2;
+                            buttons[2] = buttonData.button3;
+                            buttons[3] = buttonData.button4;
+                            buttons[4] = buttonData.button5;
+                        }
+                        catch (Exception e)
+                        {
+                            Debug.LogError("Terminal data exception: " + e.Message);
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("Terminal data exception: " + ex.Message);
+        }
+    }
 
     public float GetRotY(int mode = 0)
     {
-        return ((mode == currentMode) ? rotY : 0) + RotOffset[mode];
+        return NormalizeAngle(((mode == currentMode) ? rotY : 0) + RotOffset[mode]);
     }
 
-    public void SetMode(int mode){
+    public void SetMode(int mode)
+    {
         RotOffset[currentMode] = GetRotY();
         currentMode = mode;
         //ResetZ();
     }
+
     public int currentMode = 0;
-    float[] RotOffset = new [] {0,0,0f};
+    float[] RotOffset = new[] { 0, 0, 0f };
 
     [SerializeField] private float scrollSpeed = 20f;
+
     public void Update()
     {
-        if (Input.GetKey(KeyCode.P)){
-            if(currentMode == 0){
+        if (Input.GetKey(KeyCode.P))
+        {
+            if (currentMode == 0)
+            {
                 currentMode = 1;
                 SetMode(currentMode);
             }
-        }else if(currentMode != 0){
+        }
+        else if (currentMode != 0)
+        {
             currentMode = 0;
             SetMode(currentMode);
         }
 
         float scrollInput = Input.GetAxis("Mouse ScrollWheel");
         RotOffset[currentMode] += scrollInput * scrollSpeed;
-        
+
 
         var rotation = this.transform.rotation;
         var rotX = rotation.eulerAngles.x;
         var rotZ = rotation.eulerAngles.z;
         rotation = Quaternion.Euler(rotX, GetRotY(currentMode), rotZ);
         this.transform.rotation = rotation;
+        led.LightSingleLEDByDirection(GetRotY());
         checkTimer += Time.deltaTime;
         if (checkTimer >= checkInterval)
         {
@@ -200,5 +291,12 @@ public class GyroReader : MonoBehaviour
             lastY = currentY;
             checkTimer = 0f;
         }
+    }
+
+    float NormalizeAngle(float angle)
+    {
+        angle %= 360f;
+        if (angle < 0) angle += 360f;
+        return angle;
     }
 }
