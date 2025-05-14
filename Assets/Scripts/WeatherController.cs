@@ -20,6 +20,10 @@ public class WeatherController : MonoBehaviour
     [SerializeField] private float transitionSpeed = 2f;
     [SerializeField] private Light directionalLight;
 
+    [Header("Trees")]
+    [SerializeField] private GameObject springTrees;
+    [SerializeField] private GameObject autumnTrees;
+
     [Header("Audio")] [SerializeField] private AudioSource dayAmbience;
     [SerializeField] private AudioSource nightAmbience;
     [SerializeField] private AudioSource rainAmbience;
@@ -32,6 +36,8 @@ public class WeatherController : MonoBehaviour
     [Header("Terrain")] [SerializeField] private Terrain terrain;
     [SerializeField] private TerrainLayer normalLayer;
     [SerializeField] private TerrainLayer snowLayer;
+    [SerializeField] private TerrainLayer autumnLayer;
+    [SerializeField] private TerrainLayer springLayer;
 
     [Header("Particles")] [SerializeField] private GameObject snowParticleObject;
 
@@ -94,9 +100,24 @@ public class WeatherController : MonoBehaviour
         targetSeasonColor = currentSeasonColor;
         UpdateAmbience();
         ApplyTerrainLayer(normalLayer);
+        UpdateTrees(currentSeason);
 
         if (snowParticleObject != null)
             snowParticleObject.SetActive(false);
+    }
+
+    private void UpdateTrees(Season season)
+    {
+        if (season == Season.Autumn || season == Season.Winter)
+        {
+            if (springTrees != null) springTrees.SetActive(false);
+            if (autumnTrees != null) autumnTrees.SetActive(true);
+        }
+        else
+        {
+            if (springTrees != null) springTrees.SetActive(true);
+            if (autumnTrees != null) autumnTrees.SetActive(false);
+        }
     }
 
     public string CalculateTime()
@@ -222,12 +243,29 @@ public class WeatherController : MonoBehaviour
     public void SetSnow(bool snow)
     {
         isSnowMode = snow;
-        ApplyTerrainLayer(isSnowMode ? snowLayer : normalLayer);
+        ApplyTerrainLayer(isSnowMode ? snowLayer : GetSeasonTerrainLayer());
 
         if (snowParticleObject != null)
             snowParticleObject.SetActive(isSnowMode);
 
         UpdateAmbience();
+    }
+
+    private TerrainLayer GetSeasonTerrainLayer()
+    {
+        switch (currentSeason)
+        {
+            case Season.Spring:
+                return springLayer;
+            case Season.Summer:
+                return normalLayer;
+            case Season.Autumn:
+                return autumnLayer;
+            case Season.Winter:
+                return snowLayer;
+            default:
+                return normalLayer;
+        }
     }
 
     public bool isSnow()
@@ -586,11 +624,18 @@ public class WeatherController : MonoBehaviour
         targetSeasonColor = GetSeasonColor(newSeason);
         seasonTransitionProgress = 0f;
 
-        // Handle snow for winter
+        // Apply the appropriate terrain layer for the new season
         if (newSeason == Season.Winter)
         {
             SetSnow(true);
         }
+        else
+        {
+            ApplyTerrainLayer(GetSeasonTerrainLayer());
+        }
+
+        // Update trees based on season
+        UpdateTrees(newSeason);
     }
 
     private Color GetSeasonColor(Season season)
