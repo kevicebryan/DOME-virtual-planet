@@ -58,6 +58,13 @@ public class WeatherController : MonoBehaviour
     [Header("Rotation Controls")]
     [SerializeField] private bool isRotatingRainIntensity = false;
     [SerializeField] private bool isRotatingSeason = false;
+    [SerializeField] private float rotationModeCameraY = 1.5f; // New field for camera Y position in rotation mode
+    [SerializeField] private float cameraTransitionDuration = 0.3f; // Duration of camera movement in seconds
+
+    private Vector3 originalCameraPosition;
+    private bool wasInRotationMode = false;
+    private float cameraTransitionProgress = 1f;
+    private Vector3 targetCameraPosition;
 
     private Season currentSeason = Season.Spring;
     private Color currentSeasonColor;
@@ -89,6 +96,9 @@ public class WeatherController : MonoBehaviour
         {
             mainCamera = Camera.main;
         }
+
+        originalCameraPosition = mainCamera.transform.position;
+        targetCameraPosition = originalCameraPosition;
 
         if (directionalLight == null)
         {
@@ -131,8 +141,35 @@ public class WeatherController : MonoBehaviour
 
     private void Update()
     {
+        bool isInRotationMode = gyroReader.currentMode == 2 || gyroReader.currentMode == 1;
         isRotatingRainIntensity = gyroReader.currentMode == 2;
         isRotatingSeason = gyroReader.currentMode == 1;
+
+        // Handle camera position changes when rotation mode is toggled
+        if (isInRotationMode && !wasInRotationMode)
+        {
+            // Entering rotation mode - start transition to lower position
+            targetCameraPosition = new Vector3(mainCamera.transform.position.x, rotationModeCameraY, mainCamera.transform.position.z);
+            cameraTransitionProgress = 0f;
+        }
+        else if (!isInRotationMode && wasInRotationMode)
+        {
+            // Exiting rotation mode - start transition back to original position
+            targetCameraPosition = originalCameraPosition;
+            cameraTransitionProgress = 0f;
+        }
+        wasInRotationMode = isInRotationMode;
+
+        // Update camera position lerp
+        if (cameraTransitionProgress < 1f)
+        {
+            cameraTransitionProgress += Time.deltaTime / cameraTransitionDuration;
+            if (cameraTransitionProgress > 1f) cameraTransitionProgress = 1f;
+            
+            Vector3 currentPosition = mainCamera.transform.position;
+            Vector3 startPosition = wasInRotationMode ? originalCameraPosition : new Vector3(currentPosition.x, rotationModeCameraY, currentPosition.z);
+            mainCamera.transform.position = Vector3.Lerp(startPosition, targetCameraPosition, cameraTransitionProgress);
+        }
 
         float cameraY = NormalizeAngle(gyroReader.GetRotY(0));
         float normalized = (cameraY + 180f) % 360f;

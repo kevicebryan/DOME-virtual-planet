@@ -24297,6 +24297,7 @@ MonoBehaviour:
   minRainVolume: 0.1
   isRotatingRainIntensity: 0
   isRotatingSeason: 0
+  rotationModeCameraY: 280
   interacted: 0
 --- !u!1001 &976468150
 PrefabInstance:
