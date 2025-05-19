@@ -32,6 +32,9 @@ public class WeatherController : MonoBehaviour
 
     [Header("UI")] [SerializeField] private TextMeshProUGUI weatherText;
     [SerializeField] private Image compassImage; // Reference to UI Image
+    [SerializeField] private TextMeshProUGUI rainFeedbackText; // Separate text for rain feedback
+    [SerializeField] private TextMeshProUGUI seasonFeedbackText; // Separate text for season feedback
+    [SerializeField] private float textFadeSpeed = 2f; // Speed of text fade in/out
 
     [Header("Terrain")] [SerializeField] private Terrain terrain;
     [SerializeField] private TerrainLayer normalLayer;
@@ -90,6 +93,11 @@ public class WeatherController : MonoBehaviour
     private bool isDaytime = true;
     private float previousLightIntensity = 8f;
 
+    private float rainTextAlpha = 0f;
+    private float seasonTextAlpha = 0f;
+    private bool isRainTextFading = false;
+    private bool isSeasonTextFading = false;
+
     private void Start()
     {
         if (mainCamera == null)
@@ -114,6 +122,22 @@ public class WeatherController : MonoBehaviour
 
         if (snowParticleObject != null)
             snowParticleObject.SetActive(false);
+
+        // Initialize feedback texts with zero alpha
+        if (rainFeedbackText != null)
+        {
+            Color textColor = rainFeedbackText.color;
+            textColor.a = 0f;
+            rainFeedbackText.color = textColor;
+            rainFeedbackText.gameObject.SetActive(false);
+        }
+        if (seasonFeedbackText != null)
+        {
+            Color textColor = seasonFeedbackText.color;
+            textColor.a = 0f;
+            seasonFeedbackText.color = textColor;
+            seasonFeedbackText.gameObject.SetActive(false);
+        }
     }
 
     private void UpdateTrees(Season season)
@@ -239,6 +263,9 @@ public class WeatherController : MonoBehaviour
         {
             UpdateSkyboxTransition();
         }
+
+        // Update text fade states
+        UpdateTextFade();
     }
 
     private float NormalizeAngle(float angle)
@@ -584,10 +611,28 @@ public class WeatherController : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Comma))
         {
-            isRotatingRainIntensity = !isRotatingRainIntensity;
-            if (isRotatingRainIntensity)
+            Debug.Log("Comma key pressed - Starting rain intensity rotation");
+            isRotatingRainIntensity = true;
+            if (rainFeedbackText != null)
             {
-                SetRain(true);
+                Debug.Log("Rain feedback text found - Activating and starting fade");
+                rainFeedbackText.gameObject.SetActive(true);
+                isRainTextFading = true;
+                rainTextAlpha = 0f; // Reset alpha to ensure fade in starts from 0
+            }
+            else
+            {
+                Debug.LogWarning("Rain feedback text is null! Make sure it's assigned in the inspector.");
+            }
+            SetRain(true);
+        }
+        else if (Input.GetKeyUp(KeyCode.Comma))
+        {
+            Debug.Log("Comma key released - Stopping rain intensity rotation");
+            isRotatingRainIntensity = false;
+            if (rainFeedbackText != null)
+            {
+                isRainTextFading = true;
             }
         }
 
@@ -600,6 +645,14 @@ public class WeatherController : MonoBehaviour
             var main = rainParticleSystem.main;
             main.simulationSpeed = intensity;
 
+            // Update feedback text
+            if (rainFeedbackText != null)
+            {
+                string intensityType = currentSeason == Season.Winter ? "SNOW" : "RAIN";
+                rainFeedbackText.text = $"CHANGING {intensityType} INTENSITY TO: {intensity:F1}";
+                Debug.Log($"Updated rain text: {rainFeedbackText.text}, Alpha: {rainTextAlpha}");
+            }
+
             // Adjust rain audio volume
             if (rainAudioSource != null)
             {
@@ -610,9 +663,26 @@ public class WeatherController : MonoBehaviour
 
     private void HandleSeasonRotation()
     {
-        if (Input.GetKeyDown(KeyCode.Period))
+        if (Input.GetKeyDown(KeyCode.P))
         {
-            isRotatingSeason = !isRotatingSeason;
+            isRotatingSeason = true;
+            if (seasonFeedbackText != null)
+            {
+                seasonFeedbackText.gameObject.SetActive(true);
+                isSeasonTextFading = true;
+                // Set initial color based on current season
+                Color seasonColor = GetSeasonColor(currentSeason);
+                seasonColor.a = 0f; // Start with 0 alpha for fade in
+                seasonFeedbackText.color = seasonColor;
+            }
+        }
+        else if (Input.GetKeyUp(KeyCode.P))
+        {
+            isRotatingSeason = false;
+            if (seasonFeedbackText != null)
+            {
+                isSeasonTextFading = true;
+            }
         }
 
         if (isRotatingSeason)
@@ -622,30 +692,45 @@ public class WeatherController : MonoBehaviour
         }
     }
 
-    public void SetSeason(float cameraY){
+    public void SetSeason(float cameraY)
+    {
+        float normalized = (cameraY + 180f) % 360f;
+        
+        // Update season based on camera rotation
+        float seasonValue = normalized / 360f;
+        Season newSeason;
+        if (seasonValue < 0.25f)
+        {
+            newSeason = Season.Spring;
+        }
+        else if (seasonValue < 0.5f)
+        {
+            newSeason = Season.Summer;
+        }
+        else if (seasonValue < 0.75f)
+        {
+            newSeason = Season.Autumn;
+        }
+        else
+        {
+            newSeason = Season.Winter;
+        }
 
-            float normalized = (cameraY + 180f) % 360f;
-            
-            // Update season based on camera rotation
-            float seasonValue = normalized / 360f;
-            if (seasonValue < 0.25f)
-            {
-                UpdateSeason(Season.Spring);
-            }
-            else if (seasonValue < 0.5f)
-            {
-                UpdateSeason(Season.Summer);
-            }
-            else if (seasonValue < 0.75f)
-            {
-                UpdateSeason(Season.Autumn);
-            }
-            else
-            {
-                UpdateSeason(Season.Winter);
-            }
-            UpdateAmbience();
+        // Update feedback text
+        if (seasonFeedbackText != null)
+        {
+            seasonFeedbackText.text = $"CHANGING SEASON TO: {newSeason}";
+            // Set the text color based on the season
+            Color seasonColor = GetSeasonColor(newSeason);
+            // Keep the current alpha value
+            seasonColor.a = seasonFeedbackText.color.a;
+            seasonFeedbackText.color = seasonColor;
+        }
+
+        UpdateSeason(newSeason);
+        UpdateAmbience();
     }
+
     private void UpdateSeason(Season newSeason)
     {
         if (currentSeason == newSeason) return;
@@ -689,6 +774,48 @@ public class WeatherController : MonoBehaviour
                 return winterColor;
             default:
                 return Color.white;
+        }
+    }
+
+    private void UpdateTextFade()
+    {
+        // Update rain text fade
+        if (isRainTextFading)
+        {
+            if (rainFeedbackText != null)
+            {
+                float targetAlpha = isRotatingRainIntensity ? 1f : 0f;
+                rainTextAlpha = Mathf.MoveTowards(rainTextAlpha, targetAlpha, Time.deltaTime * textFadeSpeed);
+                Color textColor = rainFeedbackText.color;
+                textColor.a = rainTextAlpha;
+                rainFeedbackText.color = textColor;
+                
+                Debug.Log($"Rain text fade - Current alpha: {rainTextAlpha}, Target: {targetAlpha}, IsRotating: {isRotatingRainIntensity}");
+                
+                if (rainTextAlpha == 0f)
+                {
+                    rainFeedbackText.gameObject.SetActive(false);
+                    isRainTextFading = false;
+                }
+            }
+        }
+
+        // Update season text fade
+        if (isSeasonTextFading)
+        {
+            if (seasonFeedbackText != null)
+            {
+                seasonTextAlpha = Mathf.MoveTowards(seasonTextAlpha, isRotatingSeason ? 1f : 0f, Time.deltaTime * textFadeSpeed);
+                Color textColor = seasonFeedbackText.color;
+                textColor.a = seasonTextAlpha;
+                seasonFeedbackText.color = textColor;
+                
+                if (seasonTextAlpha == 0f)
+                {
+                    seasonFeedbackText.gameObject.SetActive(false);
+                    isSeasonTextFading = false;
+                }
+            }
         }
     }
 }
