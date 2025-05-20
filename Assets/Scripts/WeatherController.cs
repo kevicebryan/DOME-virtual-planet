@@ -87,7 +87,7 @@ public class WeatherController : MonoBehaviour
     private Material currentSkybox;
     private Material targetSkybox;
     private float transitionProgress = 0f;
-    private bool isDaytime = true;
+    public bool isDaytime = true;
     private float previousLightIntensity = 8f;
 
     private void Start()

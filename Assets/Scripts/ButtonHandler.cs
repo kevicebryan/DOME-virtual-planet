@@ -1,13 +1,20 @@
 using System;
 using UnityEngine;
 
-public class ButtonHandler
+public class ButtonHandler:MonoBehaviour
 {
-    public static readonly ButtonHandler Instance = new ButtonHandler();
-
+    public static bool hold;
     public Action onTap = () => Debug.Log("Tap!");
-    public Action onHoldStart = () => Debug.Log("Hold Start");
-    public Action onHoldEnd = () => Debug.Log("Hold End");
+    public Action onHoldStart = () =>
+    {
+        Debug.Log("Hold Start");
+        hold = true;
+    };
+    public Action onHoldEnd = () =>
+    {
+        Debug.Log("Hold End");
+        hold = false;
+    };
     public Action onTapHoldComboStart = () => Debug.Log("Tap+Hold Combo Start");
     public Action onTapHoldComboEnd = () => Debug.Log("Tap+Hold Combo End");
 
@@ -21,7 +28,14 @@ public class ButtonHandler
 
     private float lastTapReleaseTime = -999f;
 
-    public void Update(bool currentState)
+    public bool currentState = false;
+
+    private void Update()
+    {
+        UpdateState(currentState);
+    }
+
+    public void UpdateState(bool currentState)
     {
         float now = Time.time;
 
@@ -65,7 +79,6 @@ public class ButtonHandler
         if (currentState && isHolding && !isTapHoldCombo && (now - buttonDownTime >= tapThreshold))
         {
             onHoldStart?.Invoke();
-            isHolding = false;
         }
 
         prevButtonState = currentState;

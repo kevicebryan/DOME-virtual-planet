@@ -114,13 +114,14 @@ public class GyroReader : MonoBehaviour
 
                 if (eventLine.StartsWith("data:"))
                 {
-                    Debug.Log(eventLine);
+                    //Debug.Log(eventLine);
                     string jsonData = eventLine.Substring(5).Trim();
                     try
                     {
                         GyroReadingData data = JsonUtility.FromJson<GyroReadingData>(jsonData);
                         onGyroZUpdate?.Invoke(Math.Round(data.gyroZ, 2));
-                        ButtonHandler.Instance.Update(data.button2);
+                        button.currentState = data.button2;
+                        //button.UpdateState(data.button2);
                     }
                     catch (Exception e)
                     {
@@ -145,6 +146,7 @@ public class GyroReader : MonoBehaviour
     }
 
     public LEDController led;
+    public ButtonHandler button;
     public bool[] buttons = new bool[5];
 
     [Serializable]
@@ -164,6 +166,10 @@ public class GyroReader : MonoBehaviour
         if (gameObject.GetComponent<LEDController>() == null)
         {
             led = gameObject.AddComponent<LEDController>();
+        }
+        if (gameObject.GetComponent<ButtonHandler>() == null)
+        {
+            button = gameObject.AddComponent<ButtonHandler>();
         }
     }
 
@@ -258,7 +264,7 @@ public class GyroReader : MonoBehaviour
 
     public void Update()
     {
-        if (Input.GetKey(KeyCode.P))
+        if (Input.GetKey(KeyCode.P) || ButtonHandler.hold)
         {
             if (currentMode == 0)
             {

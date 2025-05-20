@@ -9775,6 +9775,7 @@ GameObject:
   - component: {fileID: 330585548}
   - component: {fileID: 330585549}
   - component: {fileID: 330585550}
+  - component: {fileID: 330585551}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -9930,6 +9931,7 @@ MonoBehaviour:
   port: 80
   eventsPath: /events
   led: {fileID: 0}
+  button: {fileID: 0}
   buttons: 0000000000
   interacted: 0
   checkInterval: 1
@@ -9952,6 +9954,25 @@ MonoBehaviour:
   controller: {fileID: 975881816}
   audioSource: {fileID: 2042604627}
   interacted: 0
+--- !u!114 &330585551
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 330585543}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8141a37c8f98f3d4bb88069ee86764f4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  controller: {fileID: 975881816}
+  baseUrl: http://192.168.8.185/leds
+  updateInterval: 0.05
+  riverStart: 30
+  riverLength: 4
+  waveSpeed: 4.6
+  waveRange: 1
 --- !u!1001 &332258794
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -24298,6 +24319,8 @@ MonoBehaviour:
   isRotatingRainIntensity: 0
   isRotatingSeason: 0
   rotationModeCameraY: 280
+  cameraTransitionDuration: 0.3
+  isDaytime: 1
   interacted: 0
 --- !u!1001 &976468150
 PrefabInstance:

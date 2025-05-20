@@ -3,9 +3,12 @@ using UnityEngine.Networking;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using Unity.VisualScripting;
+using UnityEngine.InputSystem.XR;
 
 public class LEDController : MonoBehaviour
 {
+    public WeatherController controller;
     public string baseUrl = "http://192.168.8.185/leds";
     private const int TOTAL_LED_COUNT = 39;
 
@@ -20,9 +23,20 @@ public class LEDController : MonoBehaviour
         for (int i = 0; i < TOTAL_LED_COUNT; i++)
             fullLedState[i] = "off";
     }
+    private void Start()
+    {
+    }
 
     private void Update()
     {
+        UpdateRiverFlow();
+        for (int i = 19; i <= 29; i++)
+        {
+            SetLED(i, controller.isDaytime ? "off" : "FFFFFF");
+        }
+        SetLED(34, controller.isDaytime ? "off" : "FFFFFF");
+        SetLED(35, controller.isDaytime ? "off" : "FFFFFF");
+        SetLED(36, controller.isDaytime ? "off" : "FFFFFF");
         updateTimer += Time.deltaTime;
         if (updateTimer >= updateInterval)
         {
@@ -102,16 +116,33 @@ public class LEDController : MonoBehaviour
         t = Mathf.Clamp01(t);
         return DimColor("FFFFFF", t);
     }
-    
-    
-    public void LightSingleLEDByDirection(float directionDeg, string colorHex = "00FFFF")
+
+
+    public void LightSingleLEDByDirection(float directionDeg, string colorHex = "fcb400")
     {
         int ledIndex = Mathf.RoundToInt(directionDeg / 20f);
         ledIndex = Mathf.Clamp(ledIndex, 0, 18);
 
-        for (int i = 0; i < 19; i++)
+        for (int i = 0; i < 18; i++)
         {
-            fullLedState[i] = (i == ledIndex) ? colorHex : "off";
+            fullLedState[17 - i] = (i == ledIndex) ? colorHex : "off";
+        }
+    }
+    [SerializeField] private int riverStart = 30;
+    [SerializeField] private int riverLength = 4;
+    [SerializeField] private float waveSpeed = 4.6f;
+    [SerializeField] private float waveRange = 1f;
+
+    private float riverTime = 0f;
+    private void UpdateRiverFlow()
+    {
+        riverTime += Time.deltaTime * waveSpeed;
+
+        for (int i = 0; i < riverLength; i++)
+        {
+            float phase = (float)i / riverLength;
+            float brightness = 1f - waveRange * (0.5f + 0.5f * Mathf.Sin(riverTime + phase * Mathf.PI * 2));
+            fullLedState[riverStart + i] = DimColor("FFFFFF", brightness);
         }
     }
 }

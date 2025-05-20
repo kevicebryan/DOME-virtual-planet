@@ -94,8 +94,6 @@ Your job is to:
    - SetRain(bool enabled)
    - SetSnow(bool enabled)
    - ClearWeather()
-   // General Functions
-   - ReportStatus()
 
 3. Respond ONLY with a command in the format:
 <------>
