@@ -7,12 +7,10 @@ public class ButtonHandler:MonoBehaviour
     public Action onTap = () => Debug.Log("Tap!");
     public Action onHoldStart = () =>
     {
-        Debug.Log("Hold Start");
         hold = true;
     };
     public Action onHoldEnd = () =>
     {
-        Debug.Log("Hold End");
         hold = false;
     };
     public Action onTapHoldComboStart = () => Debug.Log("Tap+Hold Combo Start");

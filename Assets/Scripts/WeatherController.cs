@@ -7,10 +7,11 @@ public class WeatherController : MonoBehaviour
 {
     [Header("Skyboxes & Camera")] [SerializeField]
     public GyroReader gyroReader;
+
     public GameObject rainObject;
     [SerializeField] private Material daySkybox;
     [SerializeField] private Material nightSkybox;
-    [SerializeField] private Material rainDaySkybox;  // Renamed from rainSkybox
+    [SerializeField] private Material rainDaySkybox; // Renamed from rainSkybox
     [SerializeField] private Material rainNightSkybox; // New rain night skybox
     [SerializeField] private Material sunriseSkybox;
     [SerializeField] private Material sunsetSkybox;
@@ -21,8 +22,7 @@ public class WeatherController : MonoBehaviour
     [SerializeField] private float transitionSpeed = 2f;
     [SerializeField] private Light directionalLight;
 
-    [Header("Trees")]
-    [SerializeField] private GameObject springTrees;
+    [Header("Trees")] [SerializeField] private GameObject springTrees;
     [SerializeField] private GameObject autumnTrees;
 
     [Header("Audio")] [SerializeField] private AudioSource dayAmbience;
@@ -45,22 +45,25 @@ public class WeatherController : MonoBehaviour
 
     [Header("Particles")] [SerializeField] private GameObject snowParticleObject;
 
-    [Header("Season Colors")]
-    [SerializeField] private Color springColor = new Color(0.5f, 1f, 0.5f); // Lime
+    [Header("Season Colors")] [SerializeField]
+    private Color springColor = new Color(0.5f, 1f, 0.5f); // Lime
+
     [SerializeField] private Color summerColor = new Color(1f, 1f, 0.5f); // Yellow
     [SerializeField] private Color autumnColor = new Color(1f, 0.5f, 0f); // Orange
     [SerializeField] private Color winterColor = new Color(0.8f, 0.9f, 1f); // Light ice blue
 
-    [Header("Rain Settings")]
-    [SerializeField] private ParticleSystem rainParticleSystem;
+    [Header("Rain Settings")] [SerializeField]
+    private ParticleSystem rainParticleSystem;
+
     [SerializeField] private AudioSource rainAudioSource;
     [SerializeField, Range(1f, 20f)] private float maxRainIntensity = 20f;
     [SerializeField, Range(1f, 20f)] private float minRainIntensity = 1f;
     [SerializeField, Range(0.1f, 1f)] private float maxRainVolume = 1f;
     [SerializeField, Range(0.1f, 1f)] private float minRainVolume = 0.1f;
 
-    [Header("Rotation Controls")]
-    [SerializeField] private bool isRotatingRainIntensity = false;
+    [Header("Rotation Controls")] [SerializeField]
+    private bool isRotatingRainIntensity = false;
+
     [SerializeField] private bool isRotatingSeason = false;
     [SerializeField] private float rotationModeCameraY = 1.5f; // New field for camera Y position in rotation mode
     [SerializeField] private float cameraTransitionDuration = 0.3f; // Duration of camera movement in seconds
@@ -132,6 +135,7 @@ public class WeatherController : MonoBehaviour
             rainFeedbackText.color = textColor;
             rainFeedbackText.gameObject.SetActive(false);
         }
+
         if (seasonFeedbackText != null)
         {
             Color textColor = seasonFeedbackText.color;
@@ -174,7 +178,8 @@ public class WeatherController : MonoBehaviour
         if (isInRotationMode && !wasInRotationMode)
         {
             // Entering rotation mode - start transition to lower position
-            targetCameraPosition = new Vector3(mainCamera.transform.position.x, rotationModeCameraY, mainCamera.transform.position.z);
+            targetCameraPosition = new Vector3(mainCamera.transform.position.x, rotationModeCameraY,
+                mainCamera.transform.position.z);
             cameraTransitionProgress = 0f;
         }
         else if (!isInRotationMode && wasInRotationMode)
@@ -183,6 +188,7 @@ public class WeatherController : MonoBehaviour
             targetCameraPosition = originalCameraPosition;
             cameraTransitionProgress = 0f;
         }
+
         wasInRotationMode = isInRotationMode;
 
         // Update camera position lerp
@@ -190,14 +196,16 @@ public class WeatherController : MonoBehaviour
         {
             cameraTransitionProgress += Time.deltaTime / cameraTransitionDuration;
             if (cameraTransitionProgress > 1f) cameraTransitionProgress = 1f;
-            
+
             Vector3 currentPosition = mainCamera.transform.position;
-            Vector3 startPosition = wasInRotationMode ? originalCameraPosition : new Vector3(currentPosition.x, rotationModeCameraY, currentPosition.z);
+            Vector3 startPosition = wasInRotationMode
+                ? originalCameraPosition
+                : new Vector3(currentPosition.x, rotationModeCameraY, currentPosition.z);
             mainCamera.transform.position = Vector3.Lerp(startPosition, targetCameraPosition, cameraTransitionProgress);
         }
 
         float cameraY = NormalizeAngle(gyroReader.GetRotY(0));
-        float normalized = (cameraY + 180f) % 360f;
+        float normalized = NormalizeAngle(cameraY + 180f);
         int hour = Mathf.FloorToInt(normalized / 15f);
         string timeLabel = GetTimeString(hour);
 
@@ -223,7 +231,7 @@ public class WeatherController : MonoBehaviour
                 seasonTransitionProgress = 1f;
                 currentSeasonColor = targetSeasonColor;
             }
-            
+
             if (directionalLight != null)
             {
                 directionalLight.color = Color.Lerp(currentSeasonColor, targetSeasonColor, seasonTransitionProgress);
@@ -248,7 +256,7 @@ public class WeatherController : MonoBehaviour
         {
             // Update isDaytime based on hour
             isDaytime = (hour >= 5 && hour < 19);
-            
+
             // Use the appropriate rain skybox based on time of day
             StartTransition(isDaytime ? rainDaySkybox : rainNightSkybox);
             if (!isGalaxyMode) UpdateSkyboxTransition();
@@ -270,6 +278,7 @@ public class WeatherController : MonoBehaviour
                     isSeasonTextFading = true;
                 }
             }
+
             return;
         }
 
@@ -292,7 +301,9 @@ public class WeatherController : MonoBehaviour
 
     private float NormalizeAngle(float angle)
     {
-        return (angle > 180f) ? angle - 360f : angle;
+        angle %= 360f;
+        if (angle < 0) angle += 360f;
+        return angle;
     }
 
     private void HandleRainToggle()
@@ -695,6 +706,7 @@ public class WeatherController : MonoBehaviour
             {
                 Debug.LogWarning("Rain feedback text is null! Make sure it's assigned in the inspector.");
             }
+
             SetRain(true);
         }
         else if (Input.GetKeyUp(KeyCode.Comma))
@@ -712,7 +724,7 @@ public class WeatherController : MonoBehaviour
             float cameraY = NormalizeAngle(gyroReader.GetRotY(2));
             float normalized = (cameraY + 180f) % 360f;
             float intensity = Mathf.Lerp(minRainIntensity, maxRainIntensity, normalized / 360f);
-            
+
             var main = rainParticleSystem.main;
             main.simulationSpeed = intensity;
 
@@ -771,7 +783,7 @@ public class WeatherController : MonoBehaviour
     public void SetSeason(float cameraY)
     {
         float normalized = (cameraY + 180f) % 360f;
-        
+
         // Update season based on camera rotation
         float seasonValue = normalized / 360f;
         Season newSeason;
@@ -810,13 +822,13 @@ public class WeatherController : MonoBehaviour
     private void UpdateSeason(Season newSeason)
     {
         if (currentSeason == newSeason) return;
-        
+
         // If we're leaving winter, turn off snow
         if (currentSeason == Season.Winter && newSeason != Season.Winter)
         {
             SetSnow(false);
         }
-        
+
         currentSeason = newSeason;
         currentSeasonColor = directionalLight.color;
         targetSeasonColor = GetSeasonColor(newSeason);
@@ -865,9 +877,10 @@ public class WeatherController : MonoBehaviour
                 Color textColor = rainFeedbackText.color;
                 textColor.a = rainTextAlpha;
                 rainFeedbackText.color = textColor;
-                
-                Debug.Log($"Rain text fade - Current alpha: {rainTextAlpha}, Target: {targetAlpha}, IsRotating: {isRotatingRainIntensity}");
-                
+
+                Debug.Log(
+                    $"Rain text fade - Current alpha: {rainTextAlpha}, Target: {targetAlpha}, IsRotating: {isRotatingRainIntensity}");
+
                 if (rainTextAlpha == 0f)
                 {
                     rainFeedbackText.gameObject.SetActive(false);
@@ -881,11 +894,12 @@ public class WeatherController : MonoBehaviour
         {
             if (seasonFeedbackText != null)
             {
-                seasonTextAlpha = Mathf.MoveTowards(seasonTextAlpha, isRotatingSeason ? 1f : 0f, Time.deltaTime * textFadeSpeed);
+                seasonTextAlpha = Mathf.MoveTowards(seasonTextAlpha, isRotatingSeason ? 1f : 0f,
+                    Time.deltaTime * textFadeSpeed);
                 Color textColor = seasonFeedbackText.color;
                 textColor.a = seasonTextAlpha;
                 seasonFeedbackText.color = textColor;
-                
+
                 if (seasonTextAlpha == 0f)
                 {
                     seasonFeedbackText.gameObject.SetActive(false);

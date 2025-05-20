@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.IO;
 using System.Net.Sockets;
 using System.Text;
@@ -8,6 +9,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Serialization;
 using System.Net.Http;
 using System.Threading.Tasks;
+using UnityEngine.Networking;
 
 public class GyroReader : MonoBehaviour
 {
@@ -29,30 +31,6 @@ public class GyroReader : MonoBehaviour
     {
         httpClient = new HttpClient();
         httpClient.BaseAddress = new Uri($"http://{server}:{port}");
-    }
-
-    public async void ResetZ()
-    {
-        try
-        {
-            var response = await httpClient.GetAsync("/resetZ");
-            if (response.IsSuccessStatusCode)
-            {
-                Debug.Log("Gyro Z reset triggered");
-                // Reset the current rotation offset for the current mode
-                RotOffset[currentMode] = 0f;
-                rotY = 0f;
-                lastY = 0f;
-            }
-            else
-            {
-                Debug.LogError($"Reset failed: {response.StatusCode}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.LogError($"Reset failed: {ex.Message}");
-        }
     }
 
     private void OnDestroy()
@@ -167,6 +145,7 @@ public class GyroReader : MonoBehaviour
         {
             led = gameObject.AddComponent<LEDController>();
         }
+
         if (gameObject.GetComponent<ButtonHandler>() == null)
         {
             button = gameObject.AddComponent<ButtonHandler>();
@@ -245,17 +224,37 @@ public class GyroReader : MonoBehaviour
         }
     }
 
-    public float GetRotY(int mode = 0)
+    public float GetRotY(int mode = -1, bool includeRotY = true)
     {
-        return NormalizeAngle(((mode == currentMode) ? rotY : 0) + RotOffset[mode]);
+        if (mode < 0)
+        {
+            mode = currentMode;
+        }
+
+        return ((mode == currentMode && includeRotY ? rotY : 0) + RotOffset[mode]);
     }
+
+    private float rotYP = 0;
 
     public void SetMode(int mode)
     {
-        RotOffset[currentMode] = GetRotY();
+        if (mode == currentMode)
+            return;
+
+        if (mode == 0)
+        {
+            RotOffset[0] -= rotY;
+        }
+        else if (currentMode == 0)
+        {
+            rotYP = rotY;
+            RotOffset[mode] = RotOffset[0];
+            RotOffset[0] += rotYP;
+        }
+
         currentMode = mode;
-        //ResetZ();
     }
+
 
     public int currentMode = 0;
     float[] RotOffset = new[] { 0, 0, 0f };
@@ -268,15 +267,18 @@ public class GyroReader : MonoBehaviour
         {
             if (currentMode == 0)
             {
-                currentMode = 1;
-                SetMode(currentMode);
+                SetMode(1);
             }
         }
         else if (currentMode != 0)
         {
-            currentMode = 0;
-            SetMode(currentMode);
+            SetMode(0);
         }
+
+        Debug.Log("Mode:" + currentMode + ", RotY:" + rotY + ", RotYP:" + rotYP + ", Now: " + GetRotY(currentMode) +
+                  ", mode 0: " +
+                  RotOffset[0] +
+                  ", mode 1: " + RotOffset[1]);
 
         float scrollInput = Input.GetAxis("Mouse ScrollWheel");
         RotOffset[currentMode] += scrollInput * scrollSpeed;
@@ -285,9 +287,13 @@ public class GyroReader : MonoBehaviour
         var rotation = this.transform.rotation;
         var rotX = rotation.eulerAngles.x;
         var rotZ = rotation.eulerAngles.z;
-        rotation = Quaternion.Euler(rotX, GetRotY(currentMode), rotZ);
-        this.transform.rotation = rotation;
-        led.LightSingleLEDByDirection(GetRotY());
+        if (currentMode == 0)
+        {
+            rotation = Quaternion.Euler(rotX, GetRotY(currentMode), rotZ);
+            this.transform.rotation = rotation;
+        }
+
+        led.LightSingleLEDByDirection(NormalizeAngle(GetRotY(0)));
         checkTimer += Time.deltaTime;
         if (checkTimer >= checkInterval)
         {
