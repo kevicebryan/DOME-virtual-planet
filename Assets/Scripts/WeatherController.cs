@@ -10,7 +10,8 @@ public class WeatherController : MonoBehaviour
     public GameObject rainObject;
     [SerializeField] private Material daySkybox;
     [SerializeField] private Material nightSkybox;
-    [SerializeField] private Material rainSkybox;
+    [SerializeField] private Material rainDaySkybox;  // Renamed from rainSkybox
+    [SerializeField] private Material rainNightSkybox; // New rain night skybox
     [SerializeField] private Material sunriseSkybox;
     [SerializeField] private Material sunsetSkybox;
     [SerializeField] private Material galaxySkybox;
@@ -245,9 +246,30 @@ public class WeatherController : MonoBehaviour
 
         if (rainObject.activeSelf && !isGalaxyMode && !isAuroraMode)
         {
-            StartTransition(rainSkybox);
+            // Update isDaytime based on hour
+            isDaytime = (hour >= 5 && hour < 19);
+            
+            // Use the appropriate rain skybox based on time of day
+            StartTransition(isDaytime ? rainDaySkybox : rainNightSkybox);
             if (!isGalaxyMode) UpdateSkyboxTransition();
             UpdateWeatherText("D.O.M.E.", timeLabel, tempLabel);
+
+            // Update season feedback text visibility even during rain
+            if (seasonFeedbackText != null)
+            {
+                if (isRotatingSeason && !seasonFeedbackText.gameObject.activeSelf)
+                {
+                    seasonFeedbackText.gameObject.SetActive(true);
+                    isSeasonTextFading = true;
+                    Color seasonColor = GetSeasonColor(currentSeason);
+                    seasonColor.a = 0f;
+                    seasonFeedbackText.color = seasonColor;
+                }
+                else if (!isRotatingSeason && seasonFeedbackText.gameObject.activeSelf)
+                {
+                    isSeasonTextFading = true;
+                }
+            }
             return;
         }
 
@@ -420,29 +442,48 @@ public class WeatherController : MonoBehaviour
     {
         if (!isGalaxyMode && !isAuroraMode)
         {
-            if (hour >= 5 && hour < 7)
+            if (rainObject.activeSelf)
             {
-                StartTransition(sunriseSkybox);
-                isDaytime = true;
-                directionalLight.intensity = Mathf.Lerp(0.25f, 8f, (hour - 5f) / 2f);
-            }
-            else if (hour >= 7 && hour < 17)
-            {
-                StartTransition(daySkybox);
-                isDaytime = true;
-                directionalLight.intensity = 8f;
-            }
-            else if (hour >= 17 && hour < 19)
-            {
-                StartTransition(sunsetSkybox);
-                isDaytime = false;
-                directionalLight.intensity = Mathf.Lerp(8f, 0.25f, (hour - 17f) / 2f);
+                // Handle rain skyboxes based on time of day
+                if (hour >= 5 && hour < 19) // Daytime hours (5 AM to 7 PM)
+                {
+                    StartTransition(rainDaySkybox);
+                    isDaytime = true;
+                    directionalLight.intensity = Mathf.Lerp(0.25f, 8f, (hour - 5f) / 2f);
+                }
+                else // Nighttime hours (7 PM to 5 AM)
+                {
+                    StartTransition(rainNightSkybox);
+                    isDaytime = false;
+                    directionalLight.intensity = 0.25f;
+                }
             }
             else
             {
-                StartTransition(nightSkybox);
-                isDaytime = false;
-                directionalLight.intensity = 0.25f;
+                if (hour >= 4 && hour < 7) // Sunrise (4 AM to 7 AM)
+                {
+                    StartTransition(sunriseSkybox);
+                    isDaytime = true;
+                    directionalLight.intensity = Mathf.Lerp(0.25f, 8f, (hour - 4f) / 3f);
+                }
+                else if (hour >= 7 && hour < 16) // Day (7 AM to 4 PM)
+                {
+                    StartTransition(daySkybox);
+                    isDaytime = true;
+                    directionalLight.intensity = 8f;
+                }
+                else if (hour >= 16 && hour < 19) // Sunset (4 PM to 7 PM)
+                {
+                    StartTransition(sunsetSkybox);
+                    isDaytime = false;
+                    directionalLight.intensity = Mathf.Lerp(8f, 0.25f, (hour - 16f) / 3f);
+                }
+                else // Night (7 PM to 4 AM)
+                {
+                    StartTransition(nightSkybox);
+                    isDaytime = false;
+                    directionalLight.intensity = 0.25f;
+                }
             }
         }
 
@@ -487,35 +528,61 @@ public class WeatherController : MonoBehaviour
             int baseTemp = int.Parse(match.Value);
             int adjustedTemp = baseTemp;
 
-            switch (currentSeason)
-            {
-                case Season.Spring:
-                    adjustedTemp = baseTemp - 2;
-                    break;
-                case Season.Summer:
-                    adjustedTemp = baseTemp + 5;
-                    break;
-                case Season.Autumn:
-                    adjustedTemp = baseTemp - 3;
-                    break;
-                case Season.Winter:
-                    adjustedTemp = baseTemp - 10;
-                    break;
-            }
-
-            // Additional temperature adjustments based on time of day
+            // Get current hour for time-based adjustments
             float cameraY = NormalizeAngle(gyroReader.GetRotY(1));
             float normalized = (cameraY + 180f) % 360f;
             int hour = Mathf.FloorToInt(normalized / 15f);
 
-            // Cooler at night, warmer during day
-            if (hour >= 22 || hour < 5) // Night hours
+            // Base temperature adjustments for time of day
+            // Peak temperature around 2-3 PM, coldest around 4-5 AM
+            if (hour >= 2 && hour < 5) // Early morning (2-5 AM)
             {
-                adjustedTemp -= 3;
+                adjustedTemp -= 5; // Coldest part of the day
             }
-            else if (hour >= 12 && hour < 15) // Peak day hours
+            else if (hour >= 5 && hour < 8) // Morning (5-8 AM)
             {
-                adjustedTemp += 2;
+                adjustedTemp -= 3; // Still cool but warming up
+            }
+            else if (hour >= 8 && hour < 11) // Late morning (8-11 AM)
+            {
+                adjustedTemp -= 1; // Warming up
+            }
+            else if (hour >= 11 && hour < 14) // Early afternoon (11 AM - 2 PM)
+            {
+                adjustedTemp += 2; // Warmest part of the day
+            }
+            else if (hour >= 14 && hour < 17) // Late afternoon (2-5 PM)
+            {
+                adjustedTemp += 1; // Still warm but cooling down
+            }
+            else if (hour >= 17 && hour < 20) // Evening (5-8 PM)
+            {
+                adjustedTemp -= 1; // Cooling down
+            }
+            else if (hour >= 20 && hour < 23) // Night (8-11 PM)
+            {
+                adjustedTemp -= 3; // Getting colder
+            }
+            else // Late night (11 PM - 2 AM)
+            {
+                adjustedTemp -= 4; // Cold
+            }
+
+            // Season-based adjustments
+            switch (currentSeason)
+            {
+                case Season.Spring:
+                    adjustedTemp -= 2; // Mild temperatures
+                    break;
+                case Season.Summer:
+                    adjustedTemp += 5; // Hotter temperatures
+                    break;
+                case Season.Autumn:
+                    adjustedTemp -= 3; // Cooler temperatures
+                    break;
+                case Season.Winter:
+                    adjustedTemp -= 10; // Cold temperatures
+                    break;
             }
 
             return $"TEMP: {adjustedTemp}'C";
@@ -543,7 +610,8 @@ public class WeatherController : MonoBehaviour
     {
         if (targetSkybox == null) return;
 
-        transitionProgress += Time.deltaTime * transitionSpeed;
+        // Increase transition speed for more responsive changes
+        transitionProgress += Time.deltaTime * (transitionSpeed * 2f);
         if (transitionProgress >= 1f)
         {
             RenderSettings.skybox = targetSkybox;
@@ -552,8 +620,11 @@ public class WeatherController : MonoBehaviour
             return;
         }
 
+        // Create a new material for the transition
         Material transitionMat = new Material(currentSkybox);
-        transitionMat.Lerp(currentSkybox, targetSkybox, transitionProgress);
+        // Use a modified smoothstep for faster but still smooth transitions
+        float smoothProgress = Mathf.SmoothStep(0f, 1f, Mathf.SmoothStep(0f, 1f, transitionProgress));
+        transitionMat.Lerp(currentSkybox, targetSkybox, smoothProgress);
         RenderSettings.skybox = transitionMat;
     }
 
@@ -666,7 +737,16 @@ public class WeatherController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.P))
         {
             isRotatingSeason = true;
-            if (seasonFeedbackText != null)
+        }
+        else if (Input.GetKeyUp(KeyCode.P))
+        {
+            isRotatingSeason = false;
+        }
+
+        // Update feedback text visibility based on isRotatingSeason
+        if (seasonFeedbackText != null)
+        {
+            if (isRotatingSeason && !seasonFeedbackText.gameObject.activeSelf)
             {
                 seasonFeedbackText.gameObject.SetActive(true);
                 isSeasonTextFading = true;
@@ -675,11 +755,7 @@ public class WeatherController : MonoBehaviour
                 seasonColor.a = 0f; // Start with 0 alpha for fade in
                 seasonFeedbackText.color = seasonColor;
             }
-        }
-        else if (Input.GetKeyUp(KeyCode.P))
-        {
-            isRotatingSeason = false;
-            if (seasonFeedbackText != null)
+            else if (!isRotatingSeason && seasonFeedbackText.gameObject.activeSelf)
             {
                 isSeasonTextFading = true;
             }
@@ -719,7 +795,7 @@ public class WeatherController : MonoBehaviour
         // Update feedback text
         if (seasonFeedbackText != null)
         {
-            seasonFeedbackText.text = $"CHANGING SEASON TO: {newSeason}";
+            seasonFeedbackText.text = $"CHANGE <-> SEASON : {newSeason}";
             // Set the text color based on the season
             Color seasonColor = GetSeasonColor(newSeason);
             // Keep the current alpha value
