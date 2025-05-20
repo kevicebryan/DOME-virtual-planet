@@ -1,18 +1,23 @@
 using System;
 using UnityEngine;
 
-public class ButtonHandler:MonoBehaviour
+public class ButtonHandler : MonoBehaviour
 {
     public static bool hold;
     public Action onTap = () => Debug.Log("Tap!");
+
     public Action onHoldStart = () =>
     {
         hold = true;
+        led.OverrideDirectionLEDs(true);
     };
+
     public Action onHoldEnd = () =>
     {
         hold = false;
+        led.OverrideDirectionLEDs(false);
     };
+
     public Action onTapHoldComboStart = () => Debug.Log("Tap+Hold Combo Start");
     public Action onTapHoldComboEnd = () => Debug.Log("Tap+Hold Combo End");
 
@@ -27,6 +32,16 @@ public class ButtonHandler:MonoBehaviour
     private float lastTapReleaseTime = -999f;
 
     public bool currentState = false;
+
+    public static LEDController led;
+
+    private void Start()
+    {
+        if (led == null)
+        {
+            led = gameObject.GetComponent<LEDController>();
+        }
+    }
 
     private void Update()
     {

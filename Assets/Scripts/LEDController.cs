@@ -23,6 +23,7 @@ public class LEDController : MonoBehaviour
         for (int i = 0; i < TOTAL_LED_COUNT; i++)
             fullLedState[i] = "off";
     }
+
     private void Start()
     {
     }
@@ -30,13 +31,20 @@ public class LEDController : MonoBehaviour
     private void Update()
     {
         UpdateRiverFlow();
-        for (int i = 19; i <= 29; i++)
+        /*for (int i = 19; i <= 29; i++)
         {
             SetLED(i, controller.isDaytime ? "off" : "FFFFFF");
         }
+
         SetLED(34, controller.isDaytime ? "off" : "FFFFFF");
         SetLED(35, controller.isDaytime ? "off" : "FFFFFF");
-        SetLED(36, controller.isDaytime ? "off" : "FFFFFF");
+        SetLED(36, controller.isDaytime ? "off" : "FFFFFF");*/
+
+        if (isOverridingDirection)
+        {
+            UpdateOverrideDirectionLEDs();
+        }
+
         updateTimer += Time.deltaTime;
         if (updateTimer >= updateInterval)
         {
@@ -128,12 +136,14 @@ public class LEDController : MonoBehaviour
             fullLedState[17 - i] = (i == ledIndex) ? colorHex : "off";
         }
     }
+
     [SerializeField] private int riverStart = 30;
     [SerializeField] private int riverLength = 4;
     [SerializeField] private float waveSpeed = 4.6f;
     [SerializeField] private float waveRange = 1f;
 
     private float riverTime = 0f;
+
     private void UpdateRiverFlow()
     {
         riverTime += Time.deltaTime * waveSpeed;
@@ -143,6 +153,65 @@ public class LEDController : MonoBehaviour
             float phase = (float)i / riverLength;
             float brightness = 1f - waveRange * (0.5f + 0.5f * Mathf.Sin(riverTime + phase * Mathf.PI * 2));
             fullLedState[riverStart + i] = DimColor("FFFFFF", brightness);
+        }
+    }
+
+    public void UpdateCityLightsByDirection(float directionDeg)
+    {
+        float hour = Mathf.Clamp01(directionDeg / 360f) * 24f;
+        float baseBrightness = GetBaseCityBrightness(hour);
+
+        for (int i = 19; i <= 29; i++)
+            fullLedState[i] = ComputeBreathingWhite(i, baseBrightness);
+
+        for (int i = 34; i <= 36; i++)
+            fullLedState[i] = ComputeBreathingWhite(i, baseBrightness);
+    }
+
+    private float GetBaseCityBrightness(float hour)
+    {
+        if (hour < 6f) return Mathf.Lerp(0.2f, 0.4f, hour / 6f);
+        if (hour < 8f) return Mathf.Lerp(0.4f, 1.0f, (hour - 6f) / 2f);
+        if (hour < 17f) return 1.0f;
+        if (hour < 19f) return Mathf.Lerp(1.0f, 0.5f, (hour - 17f) / 2f);
+        return Mathf.Lerp(0.5f, 0.3f, (hour - 19f) / 5f);
+    }
+
+    private string ComputeBreathingWhite(int index, float baseBrightness)
+    {
+        float offset = index * 0.618f;
+        float pulse = Mathf.Sin(Time.time * 2.0f + offset) * 0.1f + 0.9f;
+        float finalBrightness = Mathf.Clamp01(baseBrightness * pulse);
+        return DimColor("FFFFFF", finalBrightness);
+    }
+
+    private bool isOverridingDirection = false;
+    private float overrideFlashTimer = 0f;
+    private float overrideFlashDuration = 0.2f;
+
+    public void OverrideDirectionLEDs(bool active)
+    {
+        if (active && !isOverridingDirection)
+        {
+            isOverridingDirection = true;
+            overrideFlashTimer = overrideFlashDuration;
+        }
+        else if (!active && isOverridingDirection)
+        {
+            isOverridingDirection = false;
+        }
+    }
+
+    private void UpdateOverrideDirectionLEDs()
+    {
+        overrideFlashTimer -= updateInterval;
+
+        string color = "00FFFF";
+        string flashColor = (Mathf.FloorToInt(Time.time * 20f) % 2 == 0) ? color : "off";
+
+        for (int i = 0; i < 18; i++)
+        {
+            fullLedState[i] = (overrideFlashTimer > 0f) ? flashColor : color;
         }
     }
 }

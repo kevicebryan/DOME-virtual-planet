@@ -294,6 +294,8 @@ public class GyroReader : MonoBehaviour
         }
 
         led.LightSingleLEDByDirection(NormalizeAngle(GetRotY(0)));
+        led.UpdateCityLightsByDirection(NormalizeAngle(GetRotY(0)));
+        
         checkTimer += Time.deltaTime;
         if (checkTimer >= checkInterval)
         {
