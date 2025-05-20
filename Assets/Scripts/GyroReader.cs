@@ -120,6 +120,7 @@ public class GyroReader : MonoBehaviour
                     {
                         GyroReadingData data = JsonUtility.FromJson<GyroReadingData>(jsonData);
                         onGyroZUpdate?.Invoke(Math.Round(data.gyroZ, 2));
+                        ButtonHandler.Instance.Update(data.button2);
                     }
                     catch (Exception e)
                     {
