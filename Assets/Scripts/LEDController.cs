@@ -205,9 +205,20 @@ public class LEDController : MonoBehaviour
     private float directionOverrideLerp = 0f; // 当前渐变程度（0 ~ 1）
     public float directionOverrideLerpSpeed = 0.5f; // 渐变速度（越大越快）
 
+    private string GetSeasonColor(WeatherController.Season season)
+    {
+        switch (season)
+        {
+            case WeatherController.Season.Spring: return "00FFAA";
+            case WeatherController.Season.Summer: return "00FFFF";
+            case WeatherController.Season.Autumn: return "FF9900";
+            case WeatherController.Season.Winter: return "66CCFF";
+            default: return "FFFFFF";
+        }
+    }
+
     private void UpdateOverrideDirectionLEDs()
     {
-        // 渐变处理
         float target = isOverridingDirection ? 1f : 0f;
         directionOverrideLerp =
             Mathf.MoveTowards(directionOverrideLerp, target, directionOverrideLerpSpeed * updateInterval);
@@ -217,7 +228,7 @@ public class LEDController : MonoBehaviour
             float offset = 0;
             float pulse = Mathf.Sin(Time.time * 2f + offset) * 0.1f + 1.0f;
             float finalBrightness = directionOverrideLerp * pulse;
-            fullLedState[i] = DimColor("00FFFF", finalBrightness);
+            fullLedState[i] = DimColor(GetSeasonColor(controller.currentSeason), finalBrightness);
         }
     }
 }

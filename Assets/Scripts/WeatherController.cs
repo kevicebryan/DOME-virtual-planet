@@ -81,12 +81,12 @@ public class WeatherController : MonoBehaviour
         Winter
     }
 
-    private Season currentSeason = Season.Spring;
+    public Season currentSeason = Season.Spring;
     private Color currentSeasonColor;
     private Color targetSeasonColor;
     private float seasonTransitionProgress = 1f;
     private const float SEASON_TRANSITION_SPEED = 2f;
-
+    
     private bool isSnowMode = false;
     private bool isGalaxyMode = false;
     private bool isAuroraMode = false;
@@ -154,7 +154,7 @@ public class WeatherController : MonoBehaviour
     public string CalculateTime()
     {
         float cameraY = NormalizeAngle(gyroReader.GetRotY(0));
-        float normalized = (cameraY + 180f) % 360f;
+        float normalized = 360 - ((cameraY + 180f) % 360f);
         int hour = Mathf.FloorToInt(normalized / 15f);
         string timeLabel = GetTimeString(hour);
         return timeLabel;
@@ -196,7 +196,7 @@ public class WeatherController : MonoBehaviour
         }
 
         float cameraY = NormalizeAngle(gyroReader.GetRotY(0));
-        float normalized = NormalizeAngle(cameraY + 180f);
+        float normalized = 360 - NormalizeAngle(cameraY + 180f);
         int hour = Mathf.FloorToInt(normalized / 15f);
         string timeLabel = GetTimeString(hour);
 
@@ -720,11 +720,11 @@ public class WeatherController : MonoBehaviour
 
     private void HandleSeasonRotation()
     {
-        if (Input.GetKeyDown(KeyCode.P))
+        if (Input.GetKeyDown(KeyCode.P) || ButtonHandler.hold)
         {
             isRotatingSeason = true;
         }
-        else if (Input.GetKeyUp(KeyCode.P))
+        else if (Input.GetKeyUp(KeyCode.P) && !ButtonHandler.hold)
         {
             isRotatingSeason = false;
         }
@@ -741,7 +741,7 @@ public class WeatherController : MonoBehaviour
         float normalized = (cameraY + 180f) % 360f;
 
         // Update season based on camera rotation
-        float seasonValue = normalized / 360f;
+        float seasonValue = 1 - normalized / 360f;
         Season newSeason;
         if (seasonValue < 0.25f)
         {
