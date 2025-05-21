@@ -209,6 +209,7 @@ public class GyroReader : MonoBehaviour
                             buttons[2] = buttonData.button3;
                             buttons[3] = buttonData.button4;
                             buttons[4] = buttonData.button5;
+                            Debug.Log(jsonData);
                         }
                         catch (Exception e)
                         {
@@ -275,10 +276,10 @@ public class GyroReader : MonoBehaviour
             SetMode(0);
         }
 
-        Debug.Log("Mode:" + currentMode + ", RotY:" + rotY + ", RotYP:" + rotYP + ", Now: " + GetRotY(currentMode) +
+        /*Debug.Log("Mode:" + currentMode + ", RotY:" + rotY + ", RotYP:" + rotYP + ", Now: " + GetRotY(currentMode) +
                   ", mode 0: " +
                   RotOffset[0] +
-                  ", mode 1: " + RotOffset[1]);
+                  ", mode 1: " + RotOffset[1]);*/
 
         float scrollInput = Input.GetAxis("Mouse ScrollWheel");
         RotOffset[currentMode] += scrollInput * scrollSpeed;

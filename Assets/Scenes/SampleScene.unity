@@ -9975,6 +9975,7 @@ MonoBehaviour:
   riverLength: 4
   waveSpeed: 4.6
   waveRange: 1
+  directionOverrideLerpSpeed: 1.5
 --- !u!1001 &332258794
 PrefabInstance:
   m_ObjectHideFlags: 0

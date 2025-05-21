@@ -40,7 +40,7 @@ public class LEDController : MonoBehaviour
         SetLED(35, controller.isDaytime ? "off" : "FFFFFF");
         SetLED(36, controller.isDaytime ? "off" : "FFFFFF");*/
 
-        if (isOverridingDirection)
+        if (isOverridingDirection || directionOverrideLerp > 0f)
         {
             UpdateOverrideDirectionLEDs();
         }
@@ -98,7 +98,7 @@ public class LEDController : MonoBehaviour
             }
             else
             {
-                Debug.Log("LED sent: " + www.downloadHandler.text);
+                // Debug.Log("LED sent: " + www.downloadHandler.text);
             }
         }
     }
@@ -170,11 +170,11 @@ public class LEDController : MonoBehaviour
 
     private float GetBaseCityBrightness(float hour)
     {
-        if (hour < 6f) return Mathf.Lerp(0.2f, 0.4f, hour / 6f);
-        if (hour < 8f) return Mathf.Lerp(0.4f, 1.0f, (hour - 6f) / 2f);
+        if (hour < 6f) return 0f;
+        if (hour < 8f) return Mathf.Lerp(0f, 1.0f, (hour - 6f) / 2f);
         if (hour < 17f) return 1.0f;
-        if (hour < 19f) return Mathf.Lerp(1.0f, 0.5f, (hour - 17f) / 2f);
-        return Mathf.Lerp(0.5f, 0.3f, (hour - 19f) / 5f);
+        if (hour < 19f) return Mathf.Lerp(1.0f, 0f, (hour - 17f) / 2f);
+        return 0f;
     }
 
     private string ComputeBreathingWhite(int index, float baseBrightness)
@@ -202,16 +202,22 @@ public class LEDController : MonoBehaviour
         }
     }
 
+    private float directionOverrideLerp = 0f; // 当前渐变程度（0 ~ 1）
+    public float directionOverrideLerpSpeed = 0.5f; // 渐变速度（越大越快）
+
     private void UpdateOverrideDirectionLEDs()
     {
-        overrideFlashTimer -= updateInterval;
+        // 渐变处理
+        float target = isOverridingDirection ? 1f : 0f;
+        directionOverrideLerp =
+            Mathf.MoveTowards(directionOverrideLerp, target, directionOverrideLerpSpeed * updateInterval);
 
-        string color = "00FFFF";
-        string flashColor = (Mathf.FloorToInt(Time.time * 20f) % 2 == 0) ? color : "off";
-
-        for (int i = 0; i < 18; i++)
+        for (int i = 0; i <= 18; i++)
         {
-            fullLedState[i] = (overrideFlashTimer > 0f) ? flashColor : color;
+            float offset = 0;
+            float pulse = Mathf.Sin(Time.time * 2f + offset) * 0.1f + 1.0f;
+            float finalBrightness = directionOverrideLerp * pulse;
+            fullLedState[i] = DimColor("00FFFF", finalBrightness);
         }
     }
 }
