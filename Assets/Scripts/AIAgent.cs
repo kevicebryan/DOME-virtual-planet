@@ -53,9 +53,11 @@ public class AIAgent : MonoBehaviour
         }
     }
 
+    public static bool talkPushed;
+
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.T) && !isRecording && !audioSource.isPlaying)
+        if ((talkPushed || Input.GetKeyDown(KeyCode.T)) && !isRecording && !audioSource.isPlaying)
         {
             isRecording = true;
             StartCoroutine(MainRoutine());

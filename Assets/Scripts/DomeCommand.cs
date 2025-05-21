@@ -10,6 +10,16 @@ public class DomeCommand
     {
         Functions[name.ToLower()] = function;
     }
+    
+    public static void Invoke(string command, params string[] args)
+    {
+        Get(command).Invoke(new List<string>(args));
+    }
+
+    public static Action<List<string>> Get(string name)
+    {
+        return Functions[name.ToLower()];
+    }
 
     public string Name;
     public List<string> Arguments;

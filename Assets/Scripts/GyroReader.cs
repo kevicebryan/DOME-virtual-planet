@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
 using System.Text;
@@ -13,6 +14,66 @@ using UnityEngine.Networking;
 
 public class GyroReader : MonoBehaviour
 {
+    private static readonly Queue<(int, bool)> buttonEventQueue = new Queue<(int, bool)>();
+    private static readonly object queueLock = new object();
+
+    public Action<int, bool> onButtonChanged = (i, b) =>
+    {
+        lock (queueLock)
+        {
+            buttonEventQueue.Enqueue((i, b));
+        }
+
+        // 5 Aurora
+        // 4 Galaxy
+        // 3 Rain
+        // 2 Snow
+        // 1 Push to Talk
+    };
+
+    public void HandleButtonChange(int i, bool b)
+    {
+        Debug.Log("ID: " + i + ", Bool: " + b);
+        switch (i)
+        {
+            case 1:
+                AIAgent.talkPushed = b;
+                break;
+            case 2:
+                if (b)
+                {
+                    DomeCommand.Invoke("SetRain", false.ToString());
+                }
+
+                DomeCommand.Invoke("SetSnow", b.ToString());
+                break;
+            case 3:
+                if (b)
+                {
+                    DomeCommand.Invoke("SetSnow", false.ToString());
+                }
+
+                DomeCommand.Invoke("SetRain", b.ToString());
+                break;
+            case 4:
+                if (b)
+                {
+                    DomeCommand.Invoke("SetAurora", false.ToString());
+                }
+
+                DomeCommand.Invoke("SetGalaxyMode", b.ToString());
+                break;
+            case 5:
+                if (b)
+                {
+                    DomeCommand.Invoke("SetGalaxyMode", false.ToString());
+                }
+
+                DomeCommand.Invoke("SetAurora", b.ToString());
+                break;
+        }
+    }
+
     public WeatherController controller;
     private TcpClient client;
     private NetworkStream stream;
@@ -167,7 +228,7 @@ public class GyroReader : MonoBehaviour
 
     public void StartButtonListening()
     {
-        buttonListenThread = new Thread(() => ListenToData("/data"));
+        buttonListenThread = new Thread(() => ListenToData("/events"));
         buttonListenThread.Start();
     }
 
@@ -204,12 +265,23 @@ public class GyroReader : MonoBehaviour
                         try
                         {
                             ButtonData buttonData = JsonUtility.FromJson<ButtonData>(jsonData);
-                            buttons[0] = buttonData.button1;
-                            buttons[1] = buttonData.button2;
-                            buttons[2] = buttonData.button3;
-                            buttons[3] = buttonData.button4;
-                            buttons[4] = buttonData.button5;
-                            Debug.Log(jsonData);
+                            bool[] newStates = new bool[]
+                            {
+                                buttonData.button1,
+                                buttonData.button2,
+                                buttonData.button3,
+                                buttonData.button4,
+                                buttonData.button5
+                            };
+
+                            for (int i = 0; i < 5; i++)
+                            {
+                                if (buttons[i] != newStates[i])
+                                {
+                                    buttons[i] = newStates[i];
+                                    onButtonChanged?.Invoke(i + 1, buttons[i]);
+                                }
+                            }
                         }
                         catch (Exception e)
                         {
@@ -264,6 +336,15 @@ public class GyroReader : MonoBehaviour
 
     public void Update()
     {
+        lock (queueLock)
+        {
+            while (buttonEventQueue.Count > 0)
+            {
+                var (i, b) = buttonEventQueue.Dequeue();
+                HandleButtonChange(i, b);
+            }
+        }
+
         if (Input.GetKey(KeyCode.P) || ButtonHandler.hold)
         {
             if (currentMode == 0)
@@ -296,7 +377,7 @@ public class GyroReader : MonoBehaviour
 
         led.LightSingleLEDByDirection(NormalizeAngle(GetRotY(0)));
         led.UpdateCityLightsByDirection(NormalizeAngle(GetRotY(0)));
-        
+
         checkTimer += Time.deltaTime;
         if (checkTimer >= checkInterval)
         {
