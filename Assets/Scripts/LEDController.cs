@@ -40,9 +40,14 @@ public class LEDController : MonoBehaviour
         SetLED(35, controller.isDaytime ? "off" : "FFFFFF");
         SetLED(36, controller.isDaytime ? "off" : "FFFFFF");*/
 
-        if (isOverridingDirection || directionOverrideLerp > 0f)
+        if (AIAgent.isRecording || isOverridingDirection || directionOverrideLerp > 0f)
         {
-            UpdateOverrideDirectionLEDs();
+            UpdateOverrideDirectionLEDs(AIAgent.isRecording);
+        }
+
+        if (controller.isAuroraMode || controller.isGalaxyMode)
+        {
+            UpdateCityLightsByDirection(300);
         }
 
         updateTimer += Time.deltaTime;
@@ -202,22 +207,22 @@ public class LEDController : MonoBehaviour
         }
     }
 
-    private float directionOverrideLerp = 0f; // 当前渐变程度（0 ~ 1）
-    public float directionOverrideLerpSpeed = 0.5f; // 渐变速度（越大越快）
+    private float directionOverrideLerp = 0f;
+    public float directionOverrideLerpSpeed = 0.5f;
 
     private string GetSeasonColor(WeatherController.Season season)
     {
         switch (season)
         {
             case WeatherController.Season.Spring: return "00FFAA";
-            case WeatherController.Season.Summer: return "00FFFF";
+            case WeatherController.Season.Summer: return "FF2200";
             case WeatherController.Season.Autumn: return "FF9900";
             case WeatherController.Season.Winter: return "66CCFF";
             default: return "FFFFFF";
         }
     }
-
-    private void UpdateOverrideDirectionLEDs()
+    
+    private void UpdateOverrideDirectionLEDs(bool pushToTalkMode = false)
     {
         float target = isOverridingDirection ? 1f : 0f;
         directionOverrideLerp =
@@ -228,7 +233,13 @@ public class LEDController : MonoBehaviour
             float offset = 0;
             float pulse = Mathf.Sin(Time.time * 2f + offset) * 0.1f + 1.0f;
             float finalBrightness = directionOverrideLerp * pulse;
-            fullLedState[i] = DimColor(GetSeasonColor(controller.currentSeason), finalBrightness);
+            fullLedState[i] = DimColor(pushToTalkMode ? "FF0000" : GetSeasonColor(controller.currentSeason),
+                finalBrightness);
+        }
+
+        if (!AIAgent.isRecording && pushToTalkMode)
+        {
+            OverrideDirectionLEDs(false);
         }
     }
 }

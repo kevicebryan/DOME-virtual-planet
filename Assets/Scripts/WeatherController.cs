@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using TMPro;
 using System.Text.RegularExpressions;
@@ -86,10 +87,10 @@ public class WeatherController : MonoBehaviour
     private Color targetSeasonColor;
     private float seasonTransitionProgress = 1f;
     private const float SEASON_TRANSITION_SPEED = 2f;
-    
-    private bool isSnowMode = false;
-    private bool isGalaxyMode = false;
-    private bool isAuroraMode = false;
+
+    public bool isSnowMode = false;
+    public bool isGalaxyMode = false;
+    public bool isAuroraMode = false;
 
     private Material currentSkybox;
     private Material targetSkybox;
@@ -718,23 +719,33 @@ public class WeatherController : MonoBehaviour
         }
     }
 
+    public bool holding = false;
+
     private void HandleSeasonRotation()
     {
-        if (Input.GetKeyDown(KeyCode.P) || ButtonHandler.hold)
+        if ((Input.GetKeyDown(KeyCode.P) || ButtonHandler.currentState) && !isRotatingSeason)
         {
             isRotatingSeason = true;
+            relativeSeasonY = NormalizeAngle(gyroReader.GetRotY(-2));
         }
-        else if (Input.GetKeyUp(KeyCode.P) && !ButtonHandler.hold)
+        else if (!Input.GetKey(KeyCode.P) && !ButtonHandler.currentState && isRotatingSeason)
         {
             isRotatingSeason = false;
+            previousSeasonY =
+                NormalizeAngle(Mathf.DeltaAngle(relativeSeasonY, gyroReader.GetRotY(-2)) + previousSeasonY);
         }
 
         if (isRotatingSeason)
         {
-            float cameraY = NormalizeAngle(gyroReader.GetRotY(1));
+            float cameraY = NormalizeAngle(Mathf.DeltaAngle(relativeSeasonY, gyroReader.GetRotY(-2)) + previousSeasonY);
+
+            Debug.Log("relativeSeasonY:" + relativeSeasonY + "previousSeasonY: " + previousSeasonY + " CY: " + cameraY);
             SetSeason(cameraY);
         }
     }
+
+    private float relativeSeasonY = 0f;
+    private float previousSeasonY = 0f;
 
     public void SetSeason(float cameraY)
     {

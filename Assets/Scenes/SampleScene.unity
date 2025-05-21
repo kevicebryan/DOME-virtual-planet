@@ -4790,7 +4790,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bf50703c21e5a4f0182ab7f73398fec6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  weatherController: {fileID: 0}
+  weatherController: {fileID: 975881816}
   springImage: {fileID: 606274582}
   summerImage: {fileID: 458761638}
   autumnImage: {fileID: 387694661}
@@ -10138,7 +10138,6 @@ MonoBehaviour:
   eventsPath: /events
   led: {fileID: 330585551}
   button: {fileID: 0}
-  buttons: 0000000000
   interacted: 0
   checkInterval: 1
   threshold: 5
@@ -25015,8 +25014,12 @@ MonoBehaviour:
   rotationModeCameraY: 280
   cameraTransitionDuration: 0.3
   currentSeason: 0
+  isSnowMode: 0
+  isGalaxyMode: 0
+  isAuroraMode: 0
   isDaytime: 1
   interacted: 0
+  holding: 0
 --- !u!1001 &976468150
 PrefabInstance:
   m_ObjectHideFlags: 0

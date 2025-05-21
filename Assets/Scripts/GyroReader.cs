@@ -38,6 +38,11 @@ public class GyroReader : MonoBehaviour
         {
             case 1:
                 AIAgent.talkPushed = b;
+                if (b)
+                {
+                    led.OverrideDirectionLEDs(true);
+                }
+
                 break;
             case 2:
                 if (b)
@@ -159,7 +164,7 @@ public class GyroReader : MonoBehaviour
                     {
                         GyroReadingData data = JsonUtility.FromJson<GyroReadingData>(jsonData);
                         onGyroZUpdate?.Invoke(Math.Round(data.gyroZ, 2));
-                        button.currentState = data.button2;
+                        ButtonHandler.currentState = data.button2;
                         //button.UpdateState(data.button2);
                     }
                     catch (Exception e)
@@ -186,7 +191,7 @@ public class GyroReader : MonoBehaviour
 
     public LEDController led;
     public ButtonHandler button;
-    public bool[] buttons = new bool[5];
+    public static bool[] buttons = new bool[5];
 
     [Serializable]
     private class ButtonData
@@ -299,6 +304,11 @@ public class GyroReader : MonoBehaviour
 
     public float GetRotY(int mode = -1, bool includeRotY = true)
     {
+        if (mode == -2)
+        {
+            return rotY;
+        }
+
         if (mode < 0)
         {
             mode = currentMode;
@@ -317,8 +327,10 @@ public class GyroReader : MonoBehaviour
         if (mode == 0)
         {
             RotOffset[0] -= rotY;
+            RotOffset[7] = RotOffset[1];
         }
-        else if (currentMode == 0)
+
+        if (currentMode == 0)
         {
             rotYP = rotY;
             RotOffset[mode] = RotOffset[0];
@@ -330,7 +342,7 @@ public class GyroReader : MonoBehaviour
 
 
     public int currentMode = 0;
-    float[] RotOffset = new[] { 0, 0, 0f };
+    float[] RotOffset = new[] { 0, 0, 0f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     [SerializeField] private float scrollSpeed = 20f;
 

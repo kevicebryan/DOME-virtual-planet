@@ -31,7 +31,7 @@ public class ButtonHandler : MonoBehaviour
 
     private float lastTapReleaseTime = -999f;
 
-    public bool currentState = false;
+    public static bool currentState = false;
 
     public static LEDController led;
 

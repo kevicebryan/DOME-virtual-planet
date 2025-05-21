@@ -10,7 +10,7 @@ using Unity.VisualScripting;
 
 public class AIAgent : MonoBehaviour
 {
-    private bool isRecording = false;
+    public static bool isRecording = false;
     [SerializeField] private TextMeshProUGUI tmp;
     [SerializeField] private WeatherController controller;
 
@@ -54,7 +54,7 @@ public class AIAgent : MonoBehaviour
     }
 
     public static bool talkPushed;
-
+    
     private void Update()
     {
         if ((talkPushed || Input.GetKeyDown(KeyCode.T)) && !isRecording && !audioSource.isPlaying)
