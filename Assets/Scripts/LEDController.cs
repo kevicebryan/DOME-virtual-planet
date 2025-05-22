@@ -133,12 +133,12 @@ public class LEDController : MonoBehaviour
 
     public void LightSingleLEDByDirection(float directionDeg, string colorHex = "fcb400")
     {
-        int ledIndex = Mathf.RoundToInt(directionDeg / 20f);
+        int ledIndex = Mathf.RoundToInt(directionDeg / 18.94f);
         ledIndex = Mathf.Clamp(ledIndex, 0, 18);
 
-        for (int i = 0; i < 18; i++)
+        for (int i = 0; i < 19; i++)
         {
-            fullLedState[17 - i] = (i == ledIndex) ? colorHex : "off";
+            fullLedState[18 - i] = (i == ledIndex) ? colorHex : "off";
         }
     }
 
@@ -164,14 +164,41 @@ public class LEDController : MonoBehaviour
     public void UpdateCityLightsByDirection(float directionDeg, bool forceLight = false)
     {
         float hour = Mathf.Clamp01(directionDeg / 360f) * 24f;
-        float baseBrightness = forceLight ? 1 : GetBaseCityBrightness(hour);
+        float baseBrightness = forceLight ? 1f : GetBaseCityBrightness(hour);
+
+        bool rain = controller.isRain();
+        bool snow = controller.isSnow();
 
         for (int i = 19; i <= 29; i++)
-            fullLedState[i] = ComputeBreathingWhite(i, baseBrightness);
+        {
+            fullLedState[i] = ComputeWeatherCityLight(i, baseBrightness, rain, snow);
+        }
 
         for (int i = 34; i <= 36; i++)
-            fullLedState[i] = ComputeBreathingWhite(i, baseBrightness);
+        {
+            fullLedState[i] = ComputeWeatherCityLight(i, baseBrightness, rain, snow);
+        }
     }
+
+    private string ComputeWeatherCityLight(int index, float baseBrightness, bool isRain, bool isSnow)
+    {
+        if (isRain)
+        {
+            float flash = Mathf.PingPong(Time.time * 3f + index * 0.3f, 1f); // 范围 [0~1]
+            float brightness = flash > 0.5f ? baseBrightness : 0f;
+            return DimColor("99CCFF", brightness);
+        }
+
+        if (isSnow)
+        {
+            float flash = Mathf.PingPong(Time.time * 1.5f + index * 0.2f, 1f);
+            float brightness = flash > 0.7f ? baseBrightness : 0.3f * baseBrightness;
+            return DimColor("EEEEEE", brightness);
+        }
+
+        return ComputeBreathingWhite(index, baseBrightness);
+    }
+
 
     private float GetBaseCityBrightness(float hour)
     {
@@ -255,8 +282,8 @@ public class LEDController : MonoBehaviour
         {
             float offset = i * 0.5f;
             float breathSpeed = 1.5f;
-            float breathAmplitude = 0.7f;
-            float breathBase = 0.3f;
+            float breathAmplitude = 0.6f;
+            float breathBase = 0.4f;
 
             float pulse = Mathf.Sin(Time.time * breathSpeed + offset) * breathAmplitude + breathBase;
             float finalBrightness = directionOverrideLerp * pulse;
