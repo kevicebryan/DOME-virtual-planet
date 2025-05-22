@@ -24,6 +24,8 @@ public class AIAgent : MonoBehaviour
             if (!isRecording && !ButtonHandler.hold)
             {
                 led.OverrideDirectionLEDs(false);
+                led.listening = false;
+                led.thinking = false;
             }
         }
     }
@@ -39,6 +41,7 @@ public class AIAgent : MonoBehaviour
         {
             led = gameObject.GetComponent<LEDController>();
         }
+
         if (controller == null)
         {
             try
@@ -72,7 +75,7 @@ public class AIAgent : MonoBehaviour
     }
 
     public static bool talkPushed;
-    
+
     private void Update()
     {
         if ((talkPushed || Input.GetKeyDown(KeyCode.T)) && !IsRecording && !audioSource.isPlaying)
@@ -157,6 +160,7 @@ Do **not** explain anything else outside the command block.
         Debug.Log("🎙️ Start recording...");
 
         tmp.text = "Listening...";
+        led.listening = true;
 
         int sampleRate = 16000;
         float silenceThreshold = 0.01f;
@@ -207,6 +211,9 @@ Do **not** explain anything else outside the command block.
     IEnumerator TranscribeWhisper(string path, System.Action<string> callback)
     {
         WWWForm form = new WWWForm();
+        tmp.text = "Processing...";
+        led.listening = false;
+        led.thinking = true;
         form.AddField("model", "whisper-1");
         form.AddBinaryData("file", File.ReadAllBytes(path), "recorded.wav", "audio/wav");
 

@@ -221,20 +221,46 @@ public class LEDController : MonoBehaviour
             default: return "FFFFFF";
         }
     }
-    
+
+    public bool listening = false;
+    public bool thinking = false;
+
     private void UpdateOverrideDirectionLEDs(bool pushToTalkMode = false)
     {
-        float target = isOverridingDirection ? 1f : 0f;
+        float target = isOverridingDirection || pushToTalkMode || AIAgent.IsRecording ? 1f : 0f;
         directionOverrideLerp =
             Mathf.MoveTowards(directionOverrideLerp, target, directionOverrideLerpSpeed * updateInterval);
 
+        string baseColor;
+
+        if (AIAgent.IsRecording)
+        {
+            if (thinking)
+                baseColor = "0000FF";
+            else if (listening)
+                baseColor = "FF0000";
+            else
+                baseColor = GetSeasonColor(controller.currentSeason); // fallback
+        }
+        else if (pushToTalkMode)
+        {
+            baseColor = "FF0000";
+        }
+        else
+        {
+            baseColor = GetSeasonColor(controller.currentSeason);
+        }
+
         for (int i = 0; i <= 18; i++)
         {
-            float offset = 0;
-            float pulse = Mathf.Sin(Time.time * 2f + offset) * 0.1f + 1.0f;
+            float offset = i * 0.5f;
+            float breathSpeed = 1.5f;
+            float breathAmplitude = 0.7f;
+            float breathBase = 0.3f;
+
+            float pulse = Mathf.Sin(Time.time * breathSpeed + offset) * breathAmplitude + breathBase;
             float finalBrightness = directionOverrideLerp * pulse;
-            fullLedState[i] = DimColor(pushToTalkMode ? "FF0000" : GetSeasonColor(controller.currentSeason),
-                finalBrightness);
+            fullLedState[i] = DimColor(baseColor, finalBrightness);
         }
 
         if (!AIAgent.IsRecording && pushToTalkMode)
