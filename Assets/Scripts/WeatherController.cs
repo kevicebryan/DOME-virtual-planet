@@ -204,7 +204,7 @@ public class WeatherController : MonoBehaviour
         // Update compass rotation only when in clock mode (mode 0)
         if (compassImage != null && gyroReader.currentMode == 0)
         {
-            compassImage.transform.rotation = Quaternion.Euler(0, 0, -mainCamera.transform.eulerAngles.y);
+            compassImage.transform.rotation = Quaternion.Euler(0, 0, mainCamera.transform.eulerAngles.y);
         }
 
         HandleRainToggle();

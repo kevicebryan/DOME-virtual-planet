@@ -10,9 +10,23 @@ using Unity.VisualScripting;
 
 public class AIAgent : MonoBehaviour
 {
-    public static bool isRecording = false;
+    private static bool isRecording = false;
+    static LEDController led;
     [SerializeField] private TextMeshProUGUI tmp;
     [SerializeField] private WeatherController controller;
+
+    public static bool IsRecording
+    {
+        get => isRecording;
+        set
+        {
+            isRecording = value;
+            if (!isRecording && !ButtonHandler.hold)
+            {
+                led.OverrideDirectionLEDs(false);
+            }
+        }
+    }
 
     private void Start()
     {
@@ -21,6 +35,10 @@ public class AIAgent : MonoBehaviour
             gameObject.AddComponent<InteractionListener>();
         }
 
+        if (led == null)
+        {
+            led = gameObject.GetComponent<LEDController>();
+        }
         if (controller == null)
         {
             try
@@ -57,9 +75,9 @@ public class AIAgent : MonoBehaviour
     
     private void Update()
     {
-        if ((talkPushed || Input.GetKeyDown(KeyCode.T)) && !isRecording && !audioSource.isPlaying)
+        if ((talkPushed || Input.GetKeyDown(KeyCode.T)) && !IsRecording && !audioSource.isPlaying)
         {
-            isRecording = true;
+            IsRecording = true;
             StartCoroutine(MainRoutine());
         }
     }
@@ -106,6 +124,8 @@ CommandName(parameter)
 4. All responses must be in this exact format.
 
 Additionally, you must roleplay as DOME control system, speaking English. You will do everything they ask, with a little bit of humor. If user ask a function that do not exist in your system, you should say let the user know that you can't do that.
+
+Side note: only call EnableDefaultBackground when user ask or necessary to do so. 
 
 Example response:
 <------>
@@ -280,7 +300,7 @@ Do **not** explain anything else outside the command block.
         }
         else
         {
-            isRecording = false;
+            IsRecording = false;
             Debug.LogError(request.error);
 
             tmp.text = "Error: " + request.error;
@@ -333,7 +353,7 @@ Do **not** explain anything else outside the command block.
         }
         else
         {
-            isRecording = false;
+            IsRecording = false;
             Debug.LogError("TTS Error: " + www.error);
         }
     }
@@ -355,7 +375,7 @@ Do **not** explain anything else outside the command block.
                 Debug.LogError("Failed to load TTS audio: " + www.error);
             }
 
-            isRecording = false;
+            IsRecording = false;
         }
     }
 

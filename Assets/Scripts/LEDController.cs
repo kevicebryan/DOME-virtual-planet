@@ -40,14 +40,14 @@ public class LEDController : MonoBehaviour
         SetLED(35, controller.isDaytime ? "off" : "FFFFFF");
         SetLED(36, controller.isDaytime ? "off" : "FFFFFF");*/
 
-        if (AIAgent.isRecording || isOverridingDirection || directionOverrideLerp > 0f)
+        if (AIAgent.IsRecording || isOverridingDirection || directionOverrideLerp > 0f)
         {
-            UpdateOverrideDirectionLEDs(AIAgent.isRecording);
+            UpdateOverrideDirectionLEDs(AIAgent.IsRecording);
         }
 
         if (controller.isAuroraMode || controller.isGalaxyMode)
         {
-            UpdateCityLightsByDirection(300);
+            UpdateCityLightsByDirection(0, true);
         }
 
         updateTimer += Time.deltaTime;
@@ -161,10 +161,10 @@ public class LEDController : MonoBehaviour
         }
     }
 
-    public void UpdateCityLightsByDirection(float directionDeg)
+    public void UpdateCityLightsByDirection(float directionDeg, bool forceLight = false)
     {
         float hour = Mathf.Clamp01(directionDeg / 360f) * 24f;
-        float baseBrightness = GetBaseCityBrightness(hour);
+        float baseBrightness = forceLight ? 1 : GetBaseCityBrightness(hour);
 
         for (int i = 19; i <= 29; i++)
             fullLedState[i] = ComputeBreathingWhite(i, baseBrightness);
@@ -214,9 +214,9 @@ public class LEDController : MonoBehaviour
     {
         switch (season)
         {
-            case WeatherController.Season.Spring: return "00FFAA";
-            case WeatherController.Season.Summer: return "FF2200";
-            case WeatherController.Season.Autumn: return "FF9900";
+            case WeatherController.Season.Spring: return "00FF00";
+            case WeatherController.Season.Summer: return "FF9900";
+            case WeatherController.Season.Autumn: return "FF2200";
             case WeatherController.Season.Winter: return "66CCFF";
             default: return "FFFFFF";
         }
@@ -237,7 +237,7 @@ public class LEDController : MonoBehaviour
                 finalBrightness);
         }
 
-        if (!AIAgent.isRecording && pushToTalkMode)
+        if (!AIAgent.IsRecording && pushToTalkMode)
         {
             OverrideDirectionLEDs(false);
         }
