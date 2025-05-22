@@ -104,8 +104,6 @@ All input messages follow this format:
 Your job is to:
 1. Interpret what the user wants based on the message and current system state.
 2. Choose the correct command to execute:
-   // Time Functions
-   - SetTime(int angle)
    // Background Functions
    - SetGalaxyMode(bool enabled)
    - SetAurora(bool enabled)
@@ -114,6 +112,12 @@ Your job is to:
    - SetRain(bool enabled)
    - SetSnow(bool enabled)
    - ClearWeather()
+
+2.5 You can not control time or season directly, if user let you do this, ask the user do it manually, through control terminal, by rotating.
+
+Example response:
+
+Sorry, I'm don't have such privilege, but you can control this manually, by rotating the DOME!
 
 3. Respond ONLY with a command in the format:
 <------>
@@ -134,6 +138,7 @@ SetSnow(false)
 <------>
 Okay, let me turn off the rain and snow for you. Enjoy the clear weather!
 
+
 Do **not** explain anything else outside the command block.
 ";
 
@@ -153,7 +158,7 @@ Do **not** explain anything else outside the command block.
 
         int sampleRate = 16000;
         float silenceThreshold = 0.01f;
-        float silenceDuration = 2.0f;
+        float silenceDuration = 0.8f;
 
         AudioClip clip = Microphone.Start(null, true, MaxRecordSeconds, sampleRate);
         float[] samples = new float[256];
