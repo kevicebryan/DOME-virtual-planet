@@ -1,0 +1,3 @@
+[submodule "DOME-virtual-planet-ESP32"]
+	path = DOME-virtual-planet-ESP32
+	url = https://github.com/lj2000lj/DOME-virtual-planet-ESP32
